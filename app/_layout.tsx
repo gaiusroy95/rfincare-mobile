@@ -1,0 +1,68 @@
+import 'react-native-gesture-handler';
+import 'react-native-reanimated';
+import React, { useEffect, useState } from 'react';
+import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import {
+  useFonts,
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_600SemiBold,
+  DMSans_700Bold,
+} from '@expo-google-fonts/dm-sans';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { AuthProvider } from '@/src/contexts/AuthContext';
+import { NotificationProvider } from '@/src/contexts/NotificationContext';
+import { LoanProductsProvider } from '@/src/contexts/LoanProductsContext';
+import { SiteContactProvider } from '@/src/contexts/SiteContactContext';
+import LaunchSplash from '@/src/components/LaunchSplash';
+import '@/src/i18n';
+
+SplashScreen.preventAutoHideAsync();
+
+export default function RootLayout() {
+  const [showApp, setShowApp] = useState(false);
+  const [loaded, error] = useFonts({
+    DMSans_400Regular,
+    DMSans_500Medium,
+    DMSans_600SemiBold,
+    DMSans_700Bold,
+  });
+
+  useEffect(() => {
+    if (error) throw error;
+  }, [error]);
+
+  // Replace Expo Go default text splash with branded image as soon as JS loads.
+  useEffect(() => {
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (loaded) setShowApp(true);
+  }, [loaded]);
+
+  if (!showApp) {
+    return <LaunchSplash />;
+  }
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <NotificationProvider>
+          <LoanProductsProvider>
+            <SiteContactProvider>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="(customer)" />
+                <Stack.Screen name="(agent)" />
+                <Stack.Screen name="oauth/callback" />
+                <Stack.Screen name="resume/[token]" />
+              </Stack>
+            </SiteContactProvider>
+          </LoanProductsProvider>
+        </NotificationProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
+  );
+}
