@@ -50,7 +50,7 @@ export default function ExistingLoansForm({ existingLoans, errors, onChange }: P
             label="EMI amount (₹)"
             value={row.emiAmount}
             onChangeText={(v) => updateRow(row.id, { emiAmount: v })}
-            keyboardType="numeric"
+            numeric
             error={errors[`existingLoan_${row.id}_emi`]}
           />
           <Button title="Remove" variant="outline" onPress={() => removeRow(row.id)} />

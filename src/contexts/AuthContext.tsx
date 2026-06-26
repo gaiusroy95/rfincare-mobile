@@ -153,5 +153,5 @@ export function getRoleRoute(role?: string) {
     admin: '/(customer)/(tabs)/home',
     employee: '/(customer)/(tabs)/home',
   };
-  return routes[role || ''] || '/';
+  return routes[role || ''] || '/(customer)/(tabs)/home';
 }

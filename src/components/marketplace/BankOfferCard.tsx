@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BankLogo from '@/src/components/BankLogo';
 import Button from '@/src/components/Button';
@@ -18,7 +18,19 @@ export type BankOfferCardData = {
   maxAmount?: string | number | null;
   processingFee?: string;
   features?: string[];
+  applyUrl?: string | null;
 };
+
+async function openApplyUrl(url?: string | null) {
+  if (!url) return;
+  try {
+    const supported = await Linking.canOpenURL(url);
+    if (supported) await Linking.openURL(url);
+    else Alert.alert('Cannot open link', 'This bank application link is not available.');
+  } catch {
+    Alert.alert('Cannot open link', 'This bank application link is not available.');
+  }
+}
 
 type Props = {
   offer: BankOfferCardData;
@@ -120,6 +132,17 @@ export default function BankOfferCard({ offer, selected, onApply, onToggleCompar
           style={styles.compareBtn}
         />
       </View>
+
+      {offer.applyUrl ? (
+        <TouchableOpacity
+          style={styles.externalLink}
+          onPress={() => openApplyUrl(offer.applyUrl)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="open-outline" size={15} color={colors.primary} />
+          <Text style={styles.externalLinkText}>Apply on {offer.name || 'bank'} website</Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
@@ -208,4 +231,13 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 8, marginTop: 10 },
   applyBtn: { flex: 1 },
   compareBtn: { flex: 1 },
+  externalLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 8,
+  },
+  externalLinkText: { fontSize: 13, fontWeight: '600', color: colors.primary },
 });

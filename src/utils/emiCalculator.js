@@ -41,6 +41,41 @@ export function calculateEmi(principal, annualRatePercent, tenureMonths) {
   };
 }
 
+/**
+ * Month-by-month reducing-balance amortization schedule.
+ * @returns {Array<{ month: number, emi: number, principal: number, interest: number, balance: number }>}
+ */
+export function buildRepaymentSchedule(principal, annualRatePercent, tenureMonths) {
+  const summary = calculateEmi(principal, annualRatePercent, tenureMonths);
+  if (!summary) return [];
+
+  const p = summary.principal;
+  const months = summary.tenureMonths;
+  const emi = summary.emi;
+  const monthlyRate = summary.annualRatePercent > 0 ? summary.annualRatePercent / 12 / 100 : 0;
+
+  const schedule = [];
+  let balance = p;
+
+  for (let month = 1; month <= months; month += 1) {
+    const interest = monthlyRate > 0 ? Math.round(balance * monthlyRate) : 0;
+    let principalPart = emi - interest;
+    if (month === months) {
+      principalPart = Math.round(balance);
+    }
+    balance = Math.max(0, Math.round(balance - principalPart));
+    schedule.push({
+      month,
+      emi: month === months ? principalPart + interest : emi,
+      principal: principalPart,
+      interest,
+      balance,
+    });
+  }
+
+  return schedule;
+}
+
 export function formatInr(amount) {
   return `₹${Number(amount).toLocaleString('en-IN')}`;
 }

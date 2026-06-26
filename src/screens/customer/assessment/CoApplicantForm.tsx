@@ -35,7 +35,7 @@ export default function CoApplicantForm({ coApplicant, errors, onChange }: Props
         { value: 'retired', label: 'Retired' },
       ]} onChange={(v) => onChange('employmentType', v)} />
       <Input label="Employer Name" value={coApplicant.employerName} onChangeText={(v) => onChange('employerName', v)} />
-      <Input label="Monthly Income (₹)" value={coApplicant.monthlyIncome} onChangeText={(v) => onChange('monthlyIncome', v)} keyboardType="numeric" />
+      <Input label="Monthly Income (₹)" value={coApplicant.monthlyIncome} onChangeText={(v) => onChange('monthlyIncome', v)} numeric />
     </>
   );
 }

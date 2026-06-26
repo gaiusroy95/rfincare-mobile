@@ -14,8 +14,6 @@ import Button from '@/src/components/Button';
 
 import Input from '@/src/components/Input';
 
-import Checkbox from '@/src/components/Checkbox';
-
 import ProgressIndicator from '@/src/components/ProgressIndicator';
 
 import LoadingOverlay from '@/src/components/LoadingOverlay';
@@ -48,17 +46,11 @@ const STEPS = [
 
   { id: 'bank', label: 'Select Bank' },
 
-  { id: 'consent', label: 'Consents' },
-
   { id: 'otp', label: 'Verify OTP' },
 
   { id: 'confirm', label: 'Confirmation' },
 
 ];
-
-
-
-const REQUIRED_CONSENTS = ['dataSharing', 'creditCheck', 'termsConditions', 'privacyPolicy'];
 
 
 
@@ -75,10 +67,6 @@ export default function BankSelectionScreen() {
   const [banks, setBanks] = useState<Bank[]>([]);
 
   const [selectedBankId, setSelectedBankId] = useState('');
-
-  const [consents, setConsents] = useState<Record<string, boolean>>({});
-
-  const [consentErrors, setConsentErrors] = useState<Record<string, string>>({});
 
   const [appId, setAppId] = useState('');
 
@@ -166,25 +154,41 @@ export default function BankSelectionScreen() {
 
 
 
-  const validateConsents = () => {
+  const sendOtp = async () => {
 
-    const errs: Record<string, string> = {};
+    try {
 
-    REQUIRED_CONSENTS.forEach((c) => {
+      await apiClient.post('/auth/application/request-otp', {
 
-      if (!consents[c]) errs[c] = 'Required';
+        applicationId: appId,
 
-    });
+        phone: appData?.phone || user?.phone,
 
-    setConsentErrors(errs);
+        email: appData?.email || user?.email,
 
-    return Object.keys(errs).length === 0;
+      });
+
+      Alert.alert('OTP sent', 'Check your registered mobile.');
+
+    } catch {
+
+      await applicationAuthService.requestOtp({
+
+        phone: String(appData?.phone || user?.phone || ''),
+
+        email: String(appData?.email || user?.email || ''),
+
+      });
+
+    }
 
   };
 
 
 
   const next = async () => {
+
+    // Step 0: choose bank, then send OTP and move to verification.
 
     if (step === 0) {
 
@@ -196,59 +200,25 @@ export default function BankSelectionScreen() {
 
       }
 
+      await sendOtp();
+
       setStep(1);
 
       return;
 
     }
 
+    // Step 1: verify OTP and submit the application to the selected bank.
+
     if (step === 1) {
 
-      if (!validateConsents()) return;
+      if (otp.length !== 6) {
 
-      const { error } = await applicationService.saveConsents(appId, consents);
-
-      if (error) {
-
-        Alert.alert('Error', error.message || 'Failed to save consents');
+        Alert.alert('OTP required', 'Enter the 6-digit code sent to your mobile.');
 
         return;
 
       }
-
-      try {
-
-        await apiClient.post('/auth/application/request-otp', {
-
-          applicationId: appId,
-
-          phone: appData?.phone || user?.phone,
-
-          email: appData?.email || user?.email,
-
-        });
-
-        Alert.alert('OTP sent', 'Check your registered mobile.');
-
-      } catch {
-
-        await applicationAuthService.requestOtp({
-
-          phone: String(appData?.phone || user?.phone || ''),
-
-          email: String(appData?.email || user?.email || ''),
-
-        });
-
-      }
-
-      setStep(2);
-
-      return;
-
-    }
-
-    if (step === 2) {
 
       setVerifying(true);
 
@@ -276,7 +246,7 @@ export default function BankSelectionScreen() {
 
         if (error) throw new Error(error.message);
 
-        setStep(3);
+        setStep(2);
 
       } catch (e) {
 
@@ -338,25 +308,11 @@ export default function BankSelectionScreen() {
 
         <>
 
-          <Checkbox label="I consent to share my data with the selected bank" checked={!!consents.dataSharing} onChange={(v) => setConsents((c) => ({ ...c, dataSharing: v }))} />
+          <Text style={styles.hint}>OTP sent to your registered mobile for {selectedBank?.name}.</Text>
 
-          {consentErrors.dataSharing ? <Text style={styles.err}>{consentErrors.dataSharing}</Text> : null}
+          <Input label="OTP" value={otp} onChangeText={(v) => setOtp(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" maxLength={6} />
 
-          <Checkbox label="I authorize credit checks" checked={!!consents.creditCheck} onChange={(v) => setConsents((c) => ({ ...c, creditCheck: v }))} />
-
-          {consentErrors.creditCheck ? <Text style={styles.err}>{consentErrors.creditCheck}</Text> : null}
-
-          <Checkbox label="I agree to Terms & Conditions" checked={!!consents.termsConditions} onChange={(v) => setConsents((c) => ({ ...c, termsConditions: v }))} />
-
-          {consentErrors.termsConditions ? <Text style={styles.err}>{consentErrors.termsConditions}</Text> : null}
-
-          <Checkbox label="I agree to the Privacy Policy" checked={!!consents.privacyPolicy} onChange={(v) => setConsents((c) => ({ ...c, privacyPolicy: v }))} />
-
-          {consentErrors.privacyPolicy ? <Text style={styles.err}>{consentErrors.privacyPolicy}</Text> : null}
-
-          <Checkbox label="Communication consent (optional)" checked={!!consents.communicationConsent} onChange={(v) => setConsents((c) => ({ ...c, communicationConsent: v }))} />
-
-          <Checkbox label="Marketing consent (optional)" checked={!!consents.marketingConsent} onChange={(v) => setConsents((c) => ({ ...c, marketingConsent: v }))} />
+          <Button title="Resend OTP" variant="ghost" onPress={sendOtp} style={{ marginTop: 4 }} />
 
         </>
 
@@ -365,20 +321,6 @@ export default function BankSelectionScreen() {
 
 
       {step === 2 && (
-
-        <>
-
-          <Text style={styles.hint}>OTP sent to your registered mobile for {selectedBank?.name}.</Text>
-
-          <Input label="OTP" value={otp} onChangeText={setOtp} keyboardType="number-pad" maxLength={6} />
-
-        </>
-
-      )}
-
-
-
-      {step === 3 && (
 
         <Card>
 
@@ -396,13 +338,13 @@ export default function BankSelectionScreen() {
 
 
 
-      {step < 3 && (
+      {step < 2 && (
 
         <View style={styles.nav}>
 
           {step > 0 && <Button title="Back" variant="outline" onPress={() => setStep(step - 1)} style={{ flex: 1, marginRight: 4 }} />}
 
-          <Button title={step === 2 ? 'Verify & Submit' : 'Continue'} onPress={next} variant="customer" style={{ flex: 1, marginLeft: 4 }} loading={verifying} />
+          <Button title={step === 1 ? 'Verify & Submit' : 'Continue'} onPress={next} variant="customer" style={{ flex: 1, marginLeft: 4 }} loading={verifying} />
 
         </View>
 
@@ -425,8 +367,6 @@ const styles = StyleSheet.create({
   bankName: { fontSize: 16, fontWeight: '600', flex: 1 },
 
   hint: { color: colors.mutedForeground, marginBottom: 12 },
-
-  err: { color: colors.destructive, fontSize: 12, marginBottom: 8, marginTop: -8 },
 
   success: { fontSize: 18, fontWeight: '700', color: colors.success, marginBottom: 8 },
 

@@ -18,15 +18,12 @@ const ACCOUNT_LINKS: LinkItem[] = [
   { title: 'Edit Profile', icon: 'person-outline', href: '/(customer)/profile', requiresAuth: true },
   { title: 'Documents', icon: 'folder-open-outline', href: '/(customer)/documents', requiresAuth: true },
   { title: 'Password Management', icon: 'key-outline', href: '/(customer)/password', requiresAuth: true },
-  { title: 'Bank Selection & Consent', icon: 'business-outline', href: '/(customer)/bank-selection', requiresAuth: true },
-  { title: 'Additional Questionnaire', icon: 'clipboard-outline', href: '/(customer)/questionnaire', requiresAuth: true },
-  { title: 'Auth Center', icon: 'shield-outline', href: '/(customer)/auth-center', requiresAuth: true },
 ];
 
 const SUPPORT_LINKS: LinkItem[] = [
   { title: 'Share Your Story', icon: 'megaphone-outline', href: '/(customer)/share-story' },
-  { title: 'Terms of Service', icon: 'document-text-outline', href: '/(customer)/legal?slug=terms' },
-  { title: 'Privacy Policy', icon: 'lock-closed-outline', href: '/(customer)/legal?slug=privacy' },
+  { title: 'Terms of Service', icon: 'document-text-outline', href: '/(customer)/legal?slug=terms-of-service' },
+  { title: 'Privacy Policy', icon: 'lock-closed-outline', href: '/(customer)/legal?slug=privacy-policy' },
 ];
 
 function LinkSection({ title, items, isLoggedIn }: { title: string; items: LinkItem[]; isLoggedIn: boolean }) {
@@ -63,7 +60,7 @@ export default function CustomerAccountScreen() {
         style: 'destructive',
         onPress: async () => {
           await signOut();
-          router.replace('/');
+          router.replace('/(customer)/(tabs)/home');
         },
       },
     ]);
@@ -85,17 +82,27 @@ export default function CustomerAccountScreen() {
       </View>
 
       {!user ? (
-        <View style={styles.authRow}>
-          <TouchableOpacity style={styles.authBtn} onPress={() => router.push('/(customer)/login')}>
-            <Text style={styles.authBtnText}>Customer Login</Text>
-          </TouchableOpacity>
+        <>
+          <View style={styles.authRow}>
+            <TouchableOpacity style={styles.authBtn} onPress={() => router.push('/(customer)/login')}>
+              <Text style={styles.authBtnText}>Customer Login</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.authBtn, styles.authBtnOutline]}
+              onPress={() => router.push('/(customer)/register')}
+            >
+              <Text style={[styles.authBtnText, styles.authBtnTextOutline]}>Register</Text>
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity
-            style={[styles.authBtn, styles.authBtnOutline]}
-            onPress={() => router.push('/(customer)/register')}
+            style={styles.agentLoginRow}
+            onPress={() => router.push('/(agent)/login')}
           >
-            <Text style={[styles.authBtnText, styles.authBtnTextOutline]}>Register</Text>
+            <Ionicons name="briefcase-outline" size={20} color={colors.agent || colors.customer} />
+            <Text style={styles.agentLoginText}>Agent / Partner Login</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.mutedForeground} />
           </TouchableOpacity>
-        </View>
+        </>
       ) : null}
 
       <LinkSection title="Account" items={ACCOUNT_LINKS} isLoggedIn={!!user} />
@@ -107,9 +114,9 @@ export default function CustomerAccountScreen() {
           <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
       ) : (
-        <TouchableOpacity style={styles.signOut} onPress={() => router.push('/')}>
+        <TouchableOpacity style={styles.signOut} onPress={() => router.push('/(agent)/login')}>
           <Ionicons name="swap-horizontal-outline" size={20} color={colors.mutedForeground} />
-          <Text style={styles.switchRole}>Switch Role</Text>
+          <Text style={styles.switchRole}>Switch to Agent Portal</Text>
         </TouchableOpacity>
       )}
     </Screen>
@@ -154,6 +161,19 @@ const styles = StyleSheet.create({
   },
   authBtnText: { color: '#fff', fontWeight: '700' },
   authBtnTextOutline: { color: colors.customer },
+  agentLoginRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    backgroundColor: colors.card,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 16,
+  },
+  agentLoginText: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.foreground },
   section: { marginBottom: 20 },
   sectionTitle: {
     fontSize: 13,

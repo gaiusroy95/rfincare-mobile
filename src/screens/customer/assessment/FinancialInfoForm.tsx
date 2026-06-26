@@ -43,7 +43,7 @@ export default function FinancialInfoForm({ form, errors, onChange }: Props) {
   return (
     <>
       <Select label="Loan Purpose" value={form.loanPurpose} options={loanPurposeOptions} onChange={(v) => onChange('loanPurpose', v)} error={errors.loanPurpose} />
-      <Input label="Requested Loan Amount (₹)" value={form.loanAmount} onChangeText={(v) => onChange('loanAmount', v)} keyboardType="numeric" error={errors.loanAmount} />
+      <Input label="Requested Loan Amount (₹)" value={form.loanAmount} onChangeText={(v) => onChange('loanAmount', v)} numeric error={errors.loanAmount} />
       <Select label="Estimated Credit Score Range" value={form.creditScoreRange} options={CREDIT_SCORE_RANGE_OPTIONS_FULL} onChange={(v) => onChange('creditScoreRange', v)} error={errors.creditScoreRange} />
 
       <View style={styles.section}>
@@ -75,7 +75,7 @@ export default function FinancialInfoForm({ form, errors, onChange }: Props) {
       <Select label="Any overdue payments?" value={form.hasAnyOverdue} options={FINANCIAL_YES_NO_OPTIONS} onChange={(v) => onChange('hasAnyOverdue', v)} />
       {hasOverdue && (
         <>
-          <Input label="Overdue amount (₹)" value={form.overdueAmount} onChangeText={(v) => onChange('overdueAmount', v)} keyboardType="numeric" />
+          <Input label="Overdue amount (₹)" value={form.overdueAmount} onChangeText={(v) => onChange('overdueAmount', v)} numeric />
           <Select label="Overdue loan type" value={form.overdueLoanType} options={overdueOptions} onChange={(v) => onChange('overdueLoanType', v)} />
         </>
       )}

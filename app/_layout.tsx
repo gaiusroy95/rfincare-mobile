@@ -15,6 +15,7 @@ import { AuthProvider } from '@/src/contexts/AuthContext';
 import { NotificationProvider } from '@/src/contexts/NotificationContext';
 import { LoanProductsProvider } from '@/src/contexts/LoanProductsContext';
 import { SiteContactProvider } from '@/src/contexts/SiteContactContext';
+import { MarketingProvider } from '@/src/contexts/MarketingContext';
 import LaunchSplash from '@/src/components/LaunchSplash';
 import '@/src/i18n';
 
@@ -52,6 +53,7 @@ export default function RootLayout() {
         <NotificationProvider>
           <LoanProductsProvider>
             <SiteContactProvider>
+              <MarketingProvider>
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="index" />
                 <Stack.Screen name="(customer)" />
@@ -59,6 +61,7 @@ export default function RootLayout() {
                 <Stack.Screen name="oauth/callback" />
                 <Stack.Screen name="resume/[token]" />
               </Stack>
+              </MarketingProvider>
             </SiteContactProvider>
           </LoanProductsProvider>
         </NotificationProvider>

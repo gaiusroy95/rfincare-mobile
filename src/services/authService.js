@@ -172,6 +172,43 @@ export const authService = {
     }
   },
 
+  /** Public forgot-password: request OTP (no login required). */
+  async requestPasswordResetOtp(email, channel = 'email') {
+    try {
+      const res = await apiClient.post('/auth/forgot-password/request-otp', {
+        email: email.trim().toLowerCase(),
+        channel,
+      });
+      return { data: res.data, error: null };
+    } catch (error) {
+      return {
+        data: null,
+        error: {
+          message: error.response?.data?.error || error.message || 'Could not send OTP',
+        },
+      };
+    }
+  },
+
+  /** Public forgot-password: confirm OTP and set new password. */
+  async confirmPasswordReset(email, otp, newPassword) {
+    try {
+      const res = await apiClient.post('/auth/forgot-password/confirm', {
+        email: email.trim().toLowerCase(),
+        otp,
+        newPassword,
+      });
+      return { data: res.data, error: null };
+    } catch (error) {
+      return {
+        data: null,
+        error: {
+          message: error.response?.data?.error || error.message || 'Password reset failed',
+        },
+      };
+    }
+  },
+
   // Session management
   async getUserSessions() {
     try {

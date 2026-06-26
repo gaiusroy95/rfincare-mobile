@@ -22,11 +22,14 @@ export default function AddressInfoForm({ form, errors, onChange }: Props) {
 
   useEffect(() => {
     apiClient.get('/states').then((r) => {
-      const list = Array.isArray(r.data) ? r.data : r.data?.data || [];
-      setStates(list.map((s: { name?: string; code?: string }) => ({
-        value: s.name || s.code || '',
-        label: s.name || s.code || '',
-      })));
+      const list = Array.isArray(r.data) ? r.data : r.data?.data || r.data?.states || [];
+      const mapped = list
+        .map((s: { state_name?: string; stateName?: string; name?: string; code?: string }) => {
+          const name = s.state_name || s.stateName || s.name || s.code || '';
+          return { value: name, label: name };
+        })
+        .filter((o: { value: string }) => o.value);
+      setStates(mapped);
     }).catch(() => {});
   }, []);
 
@@ -39,9 +42,9 @@ export default function AddressInfoForm({ form, errors, onChange }: Props) {
       <Select label="State" value={form.state} options={states.length ? states : [{ value: form.state, label: form.state || 'Select state' }]} onChange={(v) => onChange('state', v)} error={errors.state} />
       <Input label="PIN Code" value={form.pinCode} onChangeText={(v) => onChange('pinCode', v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" maxLength={6} error={errors.pinCode} />
       <Select label="Residence Type" value={form.residenceType} options={residenceOptions} onChange={(v) => onChange('residenceType', v)} />
-      <Input label="Years at Address" value={form.yearsAtAddress} onChangeText={(v) => onChange('yearsAtAddress', v)} keyboardType="numeric" />
+      <Input label="Years at Address" value={form.yearsAtAddress} onChangeText={(v) => onChange('yearsAtAddress', v)} numeric decimal />
       {form.residenceType === 'rented' && (
-        <Input label="Monthly Rent (₹)" value={form.monthlyRent} onChangeText={(v) => onChange('monthlyRent', v)} keyboardType="numeric" error={errors.monthlyRent} />
+        <Input label="Monthly Rent (₹)" value={form.monthlyRent} onChangeText={(v) => onChange('monthlyRent', v)} numeric error={errors.monthlyRent} />
       )}
     </>
   );

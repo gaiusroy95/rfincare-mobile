@@ -30,6 +30,11 @@ import {
   clearAssessmentDraft,
   SESSION_KEY,
 } from '@/src/hooks/useAutoSave';
+import {
+  generateCredentials,
+  getStoredCredentials,
+  persistCredentials,
+} from '@/src/utils/assessmentCredentials';
 import { ASSESSMENT_STEPS, createInitialFormData, type AssessmentFormData } from './assessment/types';
 import { validateStep } from './assessment/validation';
 import { buildApplicationPayload } from './assessment/buildPayload';
@@ -118,8 +123,19 @@ export default function AssessmentScreen({ assistedByAgent = false }: Props) {
 
   const authenticateApplicant = async (): Promise<string> => {
     if (isAuthenticated && user?.id) return user.id;
+
     const email = form.email.trim().toLowerCase();
-    const password = `${form.phone}@Rfincare`;
+    if (!email) {
+      const err = new Error('Email is required. Go back to Personal details and enter your email.');
+      throw err;
+    }
+
+    // Use the same credential scheme as the website so accounts are shared
+    // across web and app. Prefer previously stored credentials for this phone.
+    const stored = await getStoredCredentials({ phone: form.phone });
+    const generated = generateCredentials({ firstName: form.firstName, phone: form.phone });
+    const password = stored?.password || generated.password;
+
     try {
       const res = await apiClient.post('/auth/signup', {
         email,
@@ -129,13 +145,30 @@ export default function AssessmentScreen({ assistedByAgent = false }: Props) {
         role: 'customer',
       });
       await setAccessToken(res.data?.accessToken);
+      await persistCredentials({ username: generated.username, password }, form.phone);
       return res.data?.user?.id;
     } catch (signupErr: unknown) {
       const status = (signupErr as { response?: { status?: number } })?.response?.status;
       if (status !== 409) throw signupErr;
-      const loginRes = await apiClient.post('/auth/login', { email, password });
-      await setAccessToken(loginRes.data?.accessToken);
-      return loginRes.data?.user?.id;
+      // Try the current scheme, then the legacy mobile scheme for older accounts.
+      const candidates = [password];
+      const legacy = `${form.phone}@Rfincare`;
+      if (legacy !== password) candidates.push(legacy);
+      for (const candidate of candidates) {
+        try {
+          const loginRes = await apiClient.post('/auth/login', { email, password: candidate });
+          await setAccessToken(loginRes.data?.accessToken);
+          await persistCredentials({ username: generated.username, password: candidate }, form.phone);
+          return loginRes.data?.user?.id;
+        } catch {
+          /* try next candidate */
+        }
+      }
+      // Account exists with a different password (e.g. set manually or via a
+      // social login). Don't surface the raw "Invalid email or password".
+      throw new Error(
+        'An account already exists for this email. Please sign in from Profile → Login (or use a different email), then continue your application.',
+      );
     }
   };
 

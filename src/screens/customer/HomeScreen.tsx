@@ -18,6 +18,8 @@ import Button from '@/src/components/Button';
 
 import Input from '@/src/components/Input';
 
+import Select from '@/src/components/Select';
+
 import Card from '@/src/components/Card';
 
 import HomeQuickActions from '@/src/components/home/HomeQuickActions';
@@ -48,15 +50,11 @@ import { bankService } from '@/src/services/apiServices';
 
 
 
-const FAQ = [
-
-  { q: 'How long does approval take?', a: 'Most applications are reviewed within 3–5 business days after document submission.' },
-
-  { q: 'What documents do I need?', a: 'PAN, Aadhaar, income proof, and bank statements are typically required.' },
-
-  { q: 'Can I compare multiple banks?', a: 'Yes — use the Bank Marketplace to filter, sort, and compare up to 3 lenders.' },
-
-];
+// Customer-facing FAQ. Excludes the agent recruitment question (q7).
+const FAQ = [1, 2, 3, 4, 5, 6, 8].map((n) => ({
+  qKey: `faq.q${n}`,
+  aKey: `faq.a${n}`,
+}));
 
 
 
@@ -94,11 +92,19 @@ export default function HomeScreen() {
 
   const [appNumber, setAppNumber] = useState('');
 
-  const [contact, setContact] = useState('');
+  const [statusEmail, setStatusEmail] = useState('');
+
+  const [statusPhone, setStatusPhone] = useState('');
+
+  const [statusChannel, setStatusChannel] = useState<'email' | 'sms' | 'whatsapp'>('email');
 
   const [otp, setOtp] = useState('');
 
   const [otpSent, setOtpSent] = useState(false);
+
+  const [statusBusy, setStatusBusy] = useState(false);
+
+  const [statusResult, setStatusResult] = useState<Record<string, unknown> | null>(null);
 
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
 
@@ -228,64 +234,92 @@ export default function HomeScreen() {
 
 
 
-  const requestOtp = async () => {
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    try {
+  const errMsg = (e: unknown, fallback: string) =>
+    (e as { response?: { data?: { error?: string; message?: string } } })?.response?.data?.error ||
+    (e as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+    (e as Error)?.message ||
+    fallback;
 
-      if (statusMode === 'status') {
-
-        await homepageService.requestStatusOtp({ applicationNumber: appNumber, emailOrPhone: contact });
-
-      } else {
-
-        await homepageService.requestDraftRecoveryOtp({ emailOrPhone: contact });
-
-      }
-
-      setOtpSent(true);
-
-    } catch (e: unknown) {
-
-      Alert.alert('Error', (e as Error).message || 'Failed to send OTP');
-
-    }
-
+  const resetStatusFlow = () => {
+    setOtpSent(false);
+    setOtp('');
+    setStatusResult(null);
   };
 
+  const closeStatus = () => {
+    setStatusOpen(false);
+    resetStatusFlow();
+  };
 
+  const requestOtp = async () => {
+    const email = statusEmail.trim().toLowerCase();
+    const phone = statusPhone.replace(/\D/g, '').slice(-10);
 
-  const verifyOtp = async () => {
-
-    try {
-
-      if (statusMode === 'status') {
-
-        const res = await homepageService.verifyStatusCheck({ applicationNumber: appNumber, emailOrPhone: contact, otp });
-
-        Alert.alert('Application Status', res?.status || JSON.stringify(res));
-
-      } else {
-
-        const res = await homepageService.verifyDraftRecovery({ emailOrPhone: contact, otp });
-
-        if (res?.resumeUrl) {
-
-          const token = res.resumeUrl.split('/').pop();
-
-          router.push(`/resume/${token}`);
-
-        }
-
-      }
-
-      setStatusOpen(false);
-
-    } catch (e: unknown) {
-
-      Alert.alert('Error', (e as Error).message || 'Verification failed');
-
+    if (!EMAIL_RE.test(email)) {
+      Alert.alert('Email required', 'Enter a valid email address.');
+      return;
+    }
+    if (!/^[6-9]\d{9}$/.test(phone)) {
+      Alert.alert('Mobile required', 'Enter a valid 10-digit mobile number.');
+      return;
+    }
+    if (statusMode === 'status' && !appNumber.trim()) {
+      Alert.alert('Application number required', 'Enter your application number.');
+      return;
     }
 
+    setStatusBusy(true);
+    try {
+      if (statusMode === 'status') {
+        await homepageService.requestStatusOtp({ email, phone, channel: statusChannel });
+      } else {
+        await homepageService.requestDraftRecoveryOtp({ email, phone, channel: statusChannel });
+      }
+      setOtp('');
+      setOtpSent(true);
+      Alert.alert('OTP sent', `A 6-digit code was sent via ${statusChannel}.`);
+    } catch (e: unknown) {
+      Alert.alert('Could not send OTP', errMsg(e, 'Failed to send OTP'));
+    } finally {
+      setStatusBusy(false);
+    }
+  };
+
+  const verifyOtp = async () => {
+    const email = statusEmail.trim().toLowerCase();
+    const phone = statusPhone.replace(/\D/g, '').slice(-10);
+
+    if (otp.length !== 6) {
+      Alert.alert('OTP required', 'Enter the 6-digit code.');
+      return;
+    }
+
+    setStatusBusy(true);
+    try {
+      if (statusMode === 'status') {
+        const res = await homepageService.verifyStatusCheck({
+          email,
+          otp,
+          applicationNumber: appNumber.trim(),
+        });
+        setStatusResult((res?.application as Record<string, unknown>) || null);
+      } else {
+        const res = await homepageService.verifyDraftRecovery({ email, phone, otp });
+        if (res?.resumeUrl) {
+          const token = String(res.resumeUrl).split('/').filter(Boolean).pop();
+          closeStatus();
+          if (token) router.push(`/resume/${token}`);
+        } else {
+          Alert.alert('No saved application', 'We could not find a saved application to resume.');
+        }
+      }
+    } catch (e: unknown) {
+      Alert.alert('Verification failed', errMsg(e, 'Invalid or expired OTP.'));
+    } finally {
+      setStatusBusy(false);
+    }
   };
 
 
@@ -370,7 +404,7 @@ export default function HomeScreen() {
 
 
 
-      <SectionHeader title="FAQ" subtitle="Quick answers to common questions." />
+      <SectionHeader title={t('faq.title')} subtitle={t('faq.subtitle')} />
 
       {FAQ.map((f, i) => (
 
@@ -378,11 +412,11 @@ export default function HomeScreen() {
 
           <TouchableOpacity onPress={() => setFaqOpen(faqOpen === i ? null : i)} activeOpacity={0.8}>
 
-            <Text style={styles.faqQ}>{f.q}</Text>
+            <Text style={styles.faqQ}>{t(f.qKey)}</Text>
 
           </TouchableOpacity>
 
-          {faqOpen === i ? <Text style={styles.faqA}>{f.a}</Text> : null}
+          {faqOpen === i ? <Text style={styles.faqA}>{t(f.aKey)}</Text> : null}
 
         </Card>
 
@@ -390,7 +424,7 @@ export default function HomeScreen() {
 
 
 
-      <Modal visible={statusOpen} animationType="slide" transparent>
+      <Modal visible={statusOpen} animationType="slide" transparent onRequestClose={closeStatus}>
 
         <View style={styles.modalBg}>
 
@@ -400,29 +434,97 @@ export default function HomeScreen() {
 
             <View style={styles.row}>
 
-              <Button title="Status" variant={statusMode === 'status' ? 'primary' : 'outline'} onPress={() => setStatusMode('status')} style={{ flex: 1, marginRight: 4 }} />
+              <Button title="Status" variant={statusMode === 'status' ? 'primary' : 'outline'} onPress={() => { setStatusMode('status'); resetStatusFlow(); }} style={{ flex: 1, marginRight: 4 }} />
 
-              <Button title="Resume Draft" variant={statusMode === 'draft' ? 'primary' : 'outline'} onPress={() => setStatusMode('draft')} style={{ flex: 1, marginLeft: 4 }} />
+              <Button title="Resume Draft" variant={statusMode === 'draft' ? 'primary' : 'outline'} onPress={() => { setStatusMode('draft'); resetStatusFlow(); }} style={{ flex: 1, marginLeft: 4 }} />
 
             </View>
 
-            {statusMode === 'status' && <Input label="Application Number" value={appNumber} onChangeText={setAppNumber} />}
+            {statusResult ? (
 
-            <Input label="Email or Phone" value={contact} onChangeText={setContact} keyboardType="email-address" />
+              <View style={{ marginTop: 8 }}>
 
-            {otpSent && <Input label="OTP" value={otp} onChangeText={setOtp} keyboardType="number-pad" maxLength={6} />}
+                <Text style={styles.resultLine}><Text style={styles.resultLabel}>Application: </Text>{String(statusResult.applicationNumber ?? appNumber)}</Text>
 
-            {!otpSent ? (
+                <Text style={styles.resultLine}><Text style={styles.resultLabel}>Status: </Text>{String(statusResult.status ?? '—')}</Text>
 
-              <Button title="Send OTP" onPress={requestOtp} style={{ marginTop: 12 }} />
+                {statusResult.eligibilityStatus ? (
+
+                  <Text style={styles.resultLine}><Text style={styles.resultLabel}>Eligibility: </Text>{String(statusResult.eligibilityStatus)}</Text>
+
+                ) : null}
+
+                {statusResult.statusNotes ? (
+
+                  <Text style={styles.resultNotes}>{String(statusResult.statusNotes)}</Text>
+
+                ) : null}
+
+                <Button title="Done" onPress={closeStatus} style={{ marginTop: 12 }} />
+
+              </View>
 
             ) : (
 
-              <Button title="Verify" onPress={verifyOtp} style={{ marginTop: 12 }} />
+              <>
+
+                {statusMode === 'status' && (
+
+                  <Input label="Application Number" value={appNumber} onChangeText={setAppNumber} autoCapitalize="none" editable={!otpSent} />
+
+                )}
+
+                <Input label="Email" value={statusEmail} onChangeText={setStatusEmail} keyboardType="email-address" autoCapitalize="none" editable={!otpSent} />
+
+                <Input label="Mobile number (10 digits)" value={statusPhone} onChangeText={(v) => setStatusPhone(v.replace(/\D/g, '').slice(0, 10))} keyboardType="phone-pad" maxLength={10} editable={!otpSent} />
+
+                {!otpSent && (
+
+                  <Select
+
+                    label="Send OTP via"
+
+                    value={statusChannel}
+
+                    options={[
+
+                      { value: 'email', label: 'Email' },
+
+                      { value: 'sms', label: 'SMS' },
+
+                      { value: 'whatsapp', label: 'WhatsApp' },
+
+                    ]}
+
+                    onChange={(v) => setStatusChannel(v as 'email' | 'sms' | 'whatsapp')}
+
+                  />
+
+                )}
+
+                {otpSent && <Input label="Enter 6-digit OTP" value={otp} onChangeText={(v) => setOtp(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" maxLength={6} />}
+
+                {!otpSent ? (
+
+                  <Button title={statusBusy ? 'Sending…' : 'Send OTP'} onPress={requestOtp} disabled={statusBusy} style={{ marginTop: 12 }} />
+
+                ) : (
+
+                  <>
+
+                    <Button title={statusBusy ? 'Verifying…' : 'Verify'} onPress={verifyOtp} disabled={statusBusy} style={{ marginTop: 12 }} />
+
+                    <Button title="Change details" variant="ghost" onPress={resetStatusFlow} style={{ marginTop: 4 }} />
+
+                  </>
+
+                )}
+
+              </>
 
             )}
 
-            <Button title="Close" variant="ghost" onPress={() => setStatusOpen(false)} style={{ marginTop: 8 }} />
+            <Button title="Close" variant="ghost" onPress={closeStatus} style={{ marginTop: 8 }} />
 
           </View>
 
@@ -527,6 +629,12 @@ const styles = StyleSheet.create({
   modal: { backgroundColor: colors.card, borderRadius: 16, padding: 20 },
 
   modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12 },
+
+  resultLine: { fontSize: 15, color: colors.foreground, marginTop: 6 },
+
+  resultLabel: { fontWeight: '700' },
+
+  resultNotes: { fontSize: 13, color: colors.mutedForeground, marginTop: 8, lineHeight: 18 },
 
   row: { flexDirection: 'row', marginBottom: 8 },
 

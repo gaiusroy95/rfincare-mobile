@@ -37,7 +37,7 @@ export default function Select({ label, value, options, onChange, placeholder = 
             <Text style={styles.sheetTitle}>{label || 'Select'}</Text>
             <FlatList
               data={options}
-              keyExtractor={(item) => item.value}
+              keyExtractor={(item, index) => `${item.value || 'opt'}-${index}`}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[styles.option, item.value === value && styles.optionActive]}

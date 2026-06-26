@@ -40,6 +40,8 @@ import kn from './locales/kn.json';
 
 import { LANGUAGE_CODES } from './languages';
 
+import { installMobileAutoTranslate, setMobileAutoTranslateLanguage } from './autoTranslate';
+
 
 
 i18n.use(initReactI18next).init({
@@ -73,6 +75,14 @@ i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
 
 });
+
+
+
+// Translate all hardcoded Text/placeholder strings at runtime (covers text not
+// wired through t()). Installed once; follows i18n language changes.
+installMobileAutoTranslate();
+setMobileAutoTranslateLanguage(i18n.language);
+i18n.on('languageChanged', (lng: string) => setMobileAutoTranslateLanguage(lng));
 
 
 

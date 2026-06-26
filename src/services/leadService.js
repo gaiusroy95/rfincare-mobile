@@ -76,22 +76,16 @@ export const leadService = {
 
 export const ELIGIBILITY_SESSION_KEY = 'rfincare_eligibility_results';
 
+/**
+ * Build the eligibility payload for persistence. Storage on mobile is handled
+ * by the caller via AsyncStorage (React Native has no sessionStorage).
+ */
 export function saveEligibilityResults(result, formData) {
-  const payload = {
+  return {
     ...result,
     formData,
     savedAt: Date.now(),
   };
-  sessionStorage.setItem(ELIGIBILITY_SESSION_KEY, JSON.stringify(payload));
-}
-
-export function loadEligibilityResults() {
-  try {
-    const raw = sessionStorage.getItem(ELIGIBILITY_SESSION_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
 }
 
 export function getBankProbabilityMap(eligibilityPayload) {

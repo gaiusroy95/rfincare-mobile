@@ -5,6 +5,7 @@ import Input from '@/src/components/Input';
 import Button from '@/src/components/Button';
 import Card from '@/src/components/Card';
 import { apiClient } from '@/src/api/apiClient';
+import { colors } from '@/src/theme';
 
 export default function PasswordManagementScreen() {
   const [current, setCurrent] = useState('');
@@ -32,7 +33,10 @@ export default function PasswordManagementScreen() {
   };
 
   return (
-    <Screen title="Password Management">
+    <Screen title="Change Password" showBack>
+      <Text style={{ color: colors.mutedForeground, marginBottom: 16, fontSize: 14 }}>
+        Update your password while signed in. You must know your current password.
+      </Text>
       <Input label="Current Password" value={current} onChangeText={setCurrent} secureTextEntry />
       <Input label="New Password" value={newPass} onChangeText={setNewPass} secureTextEntry />
       <Input label="Confirm Password" value={confirm} onChangeText={setConfirm} secureTextEntry />

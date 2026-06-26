@@ -5,7 +5,21 @@ import { colors, radii } from '@/src/theme';
 type Props = TextInputProps & {
   label?: string;
   error?: string;
+  /** Restrict input to digits only (whole numbers, e.g. amounts). */
+  numeric?: boolean;
+  /** Allow a single decimal point when used with `numeric`. */
+  decimal?: boolean;
 };
+
+function sanitizeNumeric(text: string, decimal: boolean): string {
+  if (!text) return '';
+  if (!decimal) return text.replace(/[^0-9]/g, '');
+  // Keep digits and at most one decimal point.
+  const cleaned = text.replace(/[^0-9.]/g, '');
+  const firstDot = cleaned.indexOf('.');
+  if (firstDot === -1) return cleaned;
+  return cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '');
+}
 
 const PLACEHOLDERS: Record<string, string> = {
   email: 'name@example.com',
@@ -82,9 +96,29 @@ function getDefaultPlaceholder(
   return `Enter ${key}`;
 }
 
-export default function Input({ label, error, style, placeholder, editable, secureTextEntry, multiline, ...props }: Props) {
+export default function Input({
+  label,
+  error,
+  style,
+  placeholder,
+  editable,
+  secureTextEntry,
+  multiline,
+  numeric,
+  decimal,
+  keyboardType,
+  onChangeText,
+  ...props
+}: Props) {
   const resolvedPlaceholder =
     placeholder ?? getDefaultPlaceholder(label, { secureTextEntry, multiline, editable });
+
+  const handleChangeText = numeric
+    ? (text: string) => onChangeText?.(sanitizeNumeric(text, !!decimal))
+    : onChangeText;
+
+  const resolvedKeyboardType =
+    keyboardType ?? (numeric ? (decimal ? 'decimal-pad' : 'number-pad') : undefined);
 
   return (
     <View style={styles.wrap}>
@@ -95,6 +129,8 @@ export default function Input({ label, error, style, placeholder, editable, secu
         editable={editable}
         secureTextEntry={secureTextEntry}
         multiline={multiline}
+        keyboardType={resolvedKeyboardType}
+        onChangeText={handleChangeText}
         style={[styles.input, error && styles.inputError, style]}
         {...props}
       />

@@ -36,7 +36,19 @@ export default function AgentLoginScreen() {
       <Input label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
       <Input label="Password" value={password} onChangeText={setPassword} secureTextEntry />
       <Button title="Sign In" onPress={handleLogin} loading={loading} variant="agent" />
-      <Button title="Back to Role Selection" variant="ghost" onPress={() => router.replace('/')} style={{ marginTop: 16 }} />
+      <Button
+        title="Forgot password?"
+        variant="ghost"
+        onPress={() => router.push('/(agent)/forgot-password')}
+        style={{ marginTop: 8 }}
+      />
+      <Button
+        title="Apply to become a partner"
+        variant="ghost"
+        onPress={() => router.push('/(agent)/partner')}
+        style={{ marginTop: 8 }}
+      />
+      <Button title="Back to home" variant="ghost" onPress={() => router.replace('/(customer)/(tabs)/home')} style={{ marginTop: 16 }} />
     </Screen>
   );
 }

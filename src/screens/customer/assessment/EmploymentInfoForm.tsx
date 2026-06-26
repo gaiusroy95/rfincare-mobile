@@ -36,14 +36,14 @@ export default function EmploymentInfoForm({ form, errors, onChange }: Props) {
           <Input label="Employer Name" value={form.employerName} onChangeText={(v) => onChange('employerName', v)} error={errors.employerName} />
           <Input label="Job Title" value={form.jobTitle} onChangeText={(v) => onChange('jobTitle', v)} />
           <Input label="Industry" value={form.industry} onChangeText={(v) => onChange('industry', v)} />
-          <Input label="Years Employed" value={form.yearsEmployed} onChangeText={(v) => onChange('yearsEmployed', v)} keyboardType="numeric" />
-          <Input label="Annual Income (₹)" value={form.annualIncome} onChangeText={(v) => onChange('annualIncome', v)} keyboardType="numeric" />
-          <Input label="Monthly Income (₹)" value={form.monthlyIncome} onChangeText={(v) => onChange('monthlyIncome', v)} keyboardType="numeric" error={errors.monthlyIncome} />
+          <Input label="Years Employed" value={form.yearsEmployed} onChangeText={(v) => onChange('yearsEmployed', v)} numeric decimal />
+          <Input label="Annual Income (₹)" value={form.annualIncome} onChangeText={(v) => onChange('annualIncome', v)} numeric />
+          <Input label="Monthly Income (₹)" value={form.monthlyIncome} onChangeText={(v) => onChange('monthlyIncome', v)} numeric error={errors.monthlyIncome} />
           <Input label="Employer Phone" value={form.employerPhone} onChangeText={(v) => onChange('employerPhone', v.replace(/\D/g, '').slice(0, 10))} keyboardType="phone-pad" maxLength={10} />
         </>
       ) : (
         <>
-          <Input label="Retirement Income (₹)" value={form.retirementIncome} onChangeText={(v) => onChange('retirementIncome', v)} keyboardType="numeric" error={errors.retirementIncome} />
+          <Input label="Retirement Income (₹)" value={form.retirementIncome} onChangeText={(v) => onChange('retirementIncome', v)} numeric error={errors.retirementIncome} />
           {requiresCoApplicant(form.employmentType) && (
             <CoApplicantForm coApplicant={form.coApplicant} errors={errors} onChange={updateCoApplicant} />
           )}

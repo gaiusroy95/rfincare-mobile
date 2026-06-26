@@ -1,14 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, Alert } from 'react-native';
 import Constants from 'expo-constants';
-import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import Screen from '@/src/components/Screen';
-import LanguageSwitcher from '@/src/components/LanguageSwitcher';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { useNotifications } from '@/src/contexts/NotificationContext';
 import { notificationService } from '@/src/services/notificationService';
 import { requestPushPermissions, isPushAvailable } from '@/src/services/pushNotificationService';
+import i18n from '@/src/i18n';
+// @ts-expect-error JS module
+import { LANGUAGE_CODES } from '@/src/i18n/languages';
 import { colors } from '@/src/theme';
+
+const LANGUAGE_LABELS: Record<string, string> = {
+  en: 'English',
+  hi: 'हिन्दी',
+  bn: 'বাংলা',
+  ta: 'தமிழ்',
+  te: 'తెలుగు',
+  mr: 'मराठी',
+  gu: 'ગુજરાતી',
+  kn: 'ಕನ್ನಡ',
+};
 
 type ToggleRowProps = {
   label: string;
@@ -35,12 +48,16 @@ function ToggleRow({ label, description, value, onValueChange }: ToggleRowProps)
 }
 
 export default function CustomerSettingsScreen() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { refreshPushRegistration, pushAvailable } = useNotifications();
   const [pushEnabled, setPushEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [marketingEnabled, setMarketingEnabled] = useState(false);
   const [smsEnabled, setSmsEnabled] = useState(true);
+  const [languageOpen, setLanguageOpen] = useState(false);
+
+  const currentLang = i18n.language?.split('-')[0] || 'en';
 
   useEffect(() => {
     if (!user) return;
@@ -132,14 +149,38 @@ export default function CustomerSettingsScreen() {
 
       <Text style={styles.sectionTitle}>App</Text>
       <View style={styles.card}>
-        <LanguageSwitcher />
         <View style={styles.versionRow}>
           <Text style={styles.versionLabel}>App version</Text>
           <Text style={styles.versionValue}>{Constants.expoConfig?.version || '1.0.0'}</Text>
         </View>
-        <TouchableOpacity style={styles.linkRow} onPress={() => router.push('/')}>
-          <Text style={styles.linkText}>Switch role</Text>
+        <TouchableOpacity
+          style={styles.langBtn}
+          onPress={() => setLanguageOpen((open) => !open)}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.langBtnText}>
+            {t('common.changeLanguage', 'Change language')}
+          </Text>
+          <Text style={styles.langBtnCurrent}>{LANGUAGE_LABELS[currentLang] || currentLang}</Text>
         </TouchableOpacity>
+        {languageOpen ? (
+          <View style={styles.langList}>
+            {(LANGUAGE_CODES as string[]).map((code) => (
+              <TouchableOpacity
+                key={code}
+                style={[styles.langOption, code === currentLang && styles.langOptionActive]}
+                onPress={() => {
+                  i18n.changeLanguage(code);
+                  setLanguageOpen(false);
+                }}
+              >
+                <Text style={[styles.langOptionText, code === currentLang && styles.langOptionTextActive]}>
+                  {LANGUAGE_LABELS[code] || code}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
       </View>
     </Screen>
   );
@@ -191,6 +232,27 @@ const styles = StyleSheet.create({
   },
   versionLabel: { fontSize: 15, fontWeight: '600', color: colors.foreground },
   versionValue: { fontSize: 14, color: colors.mutedForeground },
-  linkRow: { paddingVertical: 14 },
-  linkText: { fontSize: 15, fontWeight: '600', color: colors.customer },
+  langBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    gap: 12,
+  },
+  langBtnText: { fontSize: 15, fontWeight: '600', color: colors.customer },
+  langBtnCurrent: { fontSize: 14, color: colors.mutedForeground },
+  langList: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingBottom: 8,
+  },
+  langOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  langOptionActive: { backgroundColor: `${colors.customer}12` },
+  langOptionText: { fontSize: 15, color: colors.foreground },
+  langOptionTextActive: { fontWeight: '700', color: colors.customer },
 });

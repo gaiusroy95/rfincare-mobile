@@ -160,7 +160,7 @@ export default function CustomerLoginScreen() {
 
       <Button title={mode === 'login' ? 'Sign In' : 'Create Account'} onPress={handleSubmit} loading={loading} variant="customer" />
 
-      <Button title="Forgot password?" variant="ghost" onPress={() => router.push('/(customer)/password')} style={{ marginTop: 8 }} />
+      <Button title="Forgot password?" variant="ghost" onPress={() => router.push('/(customer)/forgot-password')} style={{ marginTop: 8 }} />
 
       <Button title={mode === 'login' ? 'Need an account? Sign up' : 'Already have an account? Sign in'} variant="ghost" onPress={() => setMode(mode === 'login' ? 'signup' : 'login')} style={{ marginTop: 8 }} />
 

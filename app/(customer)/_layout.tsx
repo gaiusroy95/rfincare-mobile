@@ -22,6 +22,7 @@ export default function CustomerLayout() {
       <Stack.Screen name="bank-selection" />
       <Stack.Screen name="questionnaire" />
       <Stack.Screen name="password" />
+      <Stack.Screen name="forgot-password" />
       <Stack.Screen name="auth-center" />
     </Stack>
   );
