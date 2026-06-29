@@ -32,6 +32,10 @@ import { downloadApplicationPdf } from '@/src/utils/pdfDownload';
 
 import DocumentPreviewModal from '@/src/components/DocumentPreviewModal';
 
+import CreditScoreCard from '@/src/components/dashboard/CreditScoreCard';
+
+import ApplicationStatusCard from '@/src/components/dashboard/ApplicationStatusCard';
+
 // @ts-expect-error JS module
 import { documentTypeLabel } from '@/src/utils/documentUrls';
 
@@ -40,8 +44,8 @@ import { documentTypeLabel } from '@/src/utils/documentUrls';
 import { customerJourneyService } from '@/src/services/customerJourneyService';
 
 // @ts-expect-error JS module
-
 import { bankService } from '@/src/services/apiServices';
+import { creditCardService, type CreditCard } from '@/src/services/creditCardService';
 
 // @ts-expect-error JS module
 
@@ -103,6 +107,8 @@ export default function CustomerDashboardScreen() {
 
   const [applyBanks, setApplyBanks] = useState<BankRecord[]>([]);
 
+  const [creditCards, setCreditCards] = useState<CreditCard[]>([]);
+
   const [selectedApp, setSelectedApp] = useState<Record<string, unknown> | null>(null);
 
   const [selectedDoc, setSelectedDoc] = useState<Record<string, unknown> | null>(null);
@@ -151,6 +157,11 @@ export default function CustomerDashboardScreen() {
 
       setApplyBanks(list.filter((b) => !!b?.applyUrl));
 
+    } catch { /* */ }
+
+    try {
+      const cards = await creditCardService.listActive();
+      setCreditCards(Array.isArray(cards) ? cards.slice(0, 4) : []);
     } catch { /* */ }
 
     setLoading(false);
@@ -267,21 +278,29 @@ export default function CustomerDashboardScreen() {
 
 
 
-  const getActionForApp = (app: Record<string, unknown>) => {
+  const latestApp = apps[0] || null;
 
-    const status = String(app.status || '');
+  const latestCreditScoreRange = (() => {
 
-    if (status === 'documents_pending') return { label: 'Upload Documents', href: '/(customer)/documents' };
+    if (!latestApp) return null;
 
-    if (status === 'questionnaire_pending') return { label: 'Complete Questionnaire', href: '/(customer)/questionnaire' };
+    const data = (latestApp.data && typeof latestApp.data === 'object' ? latestApp.data : {}) as Record<string, unknown>;
 
-    if (status === 'bank_selection_pending') return { label: 'Select Bank', href: '/(customer)/bank-selection' };
+    return (
 
-    return null;
+      latestApp.creditScoreRange
 
-  };
+      || latestApp.credit_score_range
 
+      || data.creditScoreRange
 
+      || data.credit_score_range
+
+      || null
+
+    ) as string | null;
+
+  })();
 
   if (!user) {
 
@@ -323,53 +342,65 @@ export default function CustomerDashboardScreen() {
 
         <>
 
-          <View style={styles.hero}>
+          <View style={styles.greetingRow}>
 
-            <View style={styles.heroRow}>
+            <View style={styles.greetingAvatar}>
 
-              <View style={styles.heroAvatar}>
-
-                <Ionicons name="person" size={24} color="#fff" />
-
-              </View>
-
-              <View style={{ flex: 1 }}>
-
-                <Text style={styles.heroGreeting}>Welcome back</Text>
-
-                <Text style={styles.heroName} numberOfLines={1}>{user.firstName || user.email}</Text>
-
-              </View>
-
-              <TouchableOpacity style={styles.heroIconBtn} onPress={() => router.push('/(customer)/profile')}>
-
-                <Ionicons name="settings-outline" size={20} color="#fff" />
-
-              </TouchableOpacity>
+              <Ionicons name="person" size={22} color={colors.customer} />
 
             </View>
 
-            <View style={styles.heroActions}>
+            <View style={{ flex: 1 }}>
 
-              <TouchableOpacity style={styles.heroPrimaryBtn} onPress={() => router.push('/(customer)/assessment')} activeOpacity={0.85}>
+              <Text style={styles.greetingSmall}>Welcome back,</Text>
 
-                <Ionicons name="add-circle-outline" size={18} color={colors.customer} />
-
-                <Text style={styles.heroPrimaryText}>New Application</Text>
-
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.heroGhostBtn} onPress={() => router.push({ pathname: '/(customer)/assessment', params: { resume: '1' } })} activeOpacity={0.85}>
-
-                <Ionicons name="document-text-outline" size={18} color="#fff" />
-
-                <Text style={styles.heroGhostText}>Resume Draft</Text>
-
-              </TouchableOpacity>
+              <Text style={styles.greetingName} numberOfLines={1}>Hello, {user.firstName || (user.email || '').split('@')[0]}</Text>
 
             </View>
+
+            <TouchableOpacity style={styles.greetingBell} onPress={() => setTab(3)}>
+
+              <Ionicons name="notifications-outline" size={22} color={colors.foreground} />
+
+              {notifications.some((n) => !n.read) ? <View style={styles.bellDot} /> : null}
+
+            </TouchableOpacity>
 
           </View>
+
+          <CreditScoreCard
+
+            range={latestCreditScoreRange}
+
+            onViewReport={() => router.push('/(customer)/eligibility')}
+
+          />
+
+          {latestApp ? (
+
+            <ApplicationStatusCard
+
+              application={latestApp}
+
+              onUploadDocs={() => setUploadOpen(true)}
+
+              onDetails={() => setSelectedApp(latestApp)}
+
+            />
+
+          ) : (
+
+            <Card>
+
+              <Text style={styles.docTitle}>No active application</Text>
+
+              <Text style={styles.meta}>Start a new application to track its progress here.</Text>
+
+              <Button title="New Application" variant="customer" onPress={() => router.push('/(customer)/assessment')} style={{ marginTop: 12 }} />
+
+            </Card>
+
+          )}
 
           <Text style={styles.section}>Quick Apply</Text>
 
@@ -401,47 +432,43 @@ export default function CustomerDashboardScreen() {
 
             ))}
 
-          </View>
+            {(creditCards.length ? creditCards : [{ id: 'browse', name: 'Credit Cards', bankName: 'Compare' }]).map((card) => (
 
-          <View style={styles.sectionRow}>
+              <TouchableOpacity
 
-            <Text style={styles.section}>Active Applications</Text>
+                key={card.id}
 
-            {apps.length > 2 ? (
+                style={styles.quickCard}
 
-              <TouchableOpacity onPress={() => setTab(1)}><Text style={styles.viewHint}>View all</Text></TouchableOpacity>
+                activeOpacity={0.85}
 
-            ) : null}
+                onPress={() => router.push('/(customer)/credit-cards')}
 
-          </View>
+              >
 
-          {apps.length === 0 ? (
+                <View style={[styles.quickIcon, { backgroundColor: '#EDE9FE' }]}>
 
-            <Card><Text style={styles.meta}>No applications yet. Start a new application above.</Text></Card>
-
-          ) : apps.slice(0, 2).map((app) => {
-
-            const action = getActionForApp(app);
-
-            return (
-
-              <Card key={String(app.id)}>
-
-                <View style={styles.appRow}>
-
-                  <Text style={styles.appNum}>{String(app.applicationNumber || app.id)}</Text>
-
-                  <StatusBadge status={String(app.status || 'pending')} />
+                  <Ionicons name="card-outline" size={22} color="#6D28D9" />
 
                 </View>
 
-                {action && <Button title={action.label} variant="customer" onPress={() => router.push(action.href as never)} style={{ marginTop: 8 }} />}
+                <Text style={styles.quickLabel} numberOfLines={2}>{card.name}</Text>
 
-              </Card>
+              </TouchableOpacity>
 
-            );
+            ))}
 
-          })}
+          </View>
+
+          {creditCards.length > 0 ? (
+
+            <TouchableOpacity onPress={() => router.push('/(customer)/credit-cards')} style={{ marginBottom: 8 }}>
+
+              <Text style={styles.viewHint}>Compare all credit cards →</Text>
+
+            </TouchableOpacity>
+
+          ) : null}
 
           {applyBanks.length > 0 ? (
 
@@ -449,9 +476,9 @@ export default function CustomerDashboardScreen() {
 
               <View style={styles.sectionRow}>
 
-                <Text style={styles.section}>Apply for Credit Cards & Loans</Text>
+                <Text style={styles.section}>Exclusive Offers</Text>
 
-                <TouchableOpacity onPress={() => router.push('/(customer)/(tabs)/marketplace')}><Text style={styles.viewHint}>All banks</Text></TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push('/(customer)/(tabs)/marketplace')}><Text style={styles.viewHint}>View All</Text></TouchableOpacity>
 
               </View>
 
@@ -469,29 +496,37 @@ export default function CustomerDashboardScreen() {
 
                 renderItem={({ item }) => (
 
-                  <View style={styles.bankCard}>
+                  <View style={styles.offerCard}>
 
-                    <View style={styles.bankLogoWrap}>
+                    <View style={styles.offerTop}>
 
-                      {getBankLogoUrl(item) ? (
+                      <View style={styles.offerLogoWrap}>
 
-                        <Image source={{ uri: getBankLogoUrl(item) }} style={styles.bankLogo} resizeMode="contain" />
+                        {getBankLogoUrl(item) ? (
 
-                      ) : (
+                          <Image source={{ uri: getBankLogoUrl(item) }} style={styles.offerLogo} resizeMode="contain" />
 
-                        <Ionicons name="business-outline" size={22} color={colors.primary} />
+                        ) : (
 
-                      )}
+                          <Ionicons name="card-outline" size={22} color="#fff" />
+
+                        )}
+
+                      </View>
+
+                      <Ionicons name="sparkles" size={16} color="rgba(255,255,255,0.8)" />
 
                     </View>
 
-                    <Text style={styles.bankName} numberOfLines={2}>{item.name}</Text>
+                    <Text style={styles.offerName} numberOfLines={2}>{item.name}</Text>
 
-                    <TouchableOpacity style={styles.bankApplyBtn} onPress={() => openExternalUrl(item.applyUrl)} activeOpacity={0.85}>
+                    <Text style={styles.offerSub}>Apply directly on the bank website</Text>
 
-                      <Text style={styles.bankApplyText}>Apply</Text>
+                    <TouchableOpacity style={styles.offerBtn} onPress={() => openExternalUrl(item.applyUrl)} activeOpacity={0.85}>
 
-                      <Ionicons name="open-outline" size={14} color="#fff" />
+                      <Text style={styles.offerBtnText}>Apply Now</Text>
+
+                      <Ionicons name="arrow-forward" size={14} color={colors.primary} />
 
                     </TouchableOpacity>
 
@@ -505,9 +540,23 @@ export default function CustomerDashboardScreen() {
 
           ) : null}
 
-          <Text style={styles.section}>Recent Documents ({docs.length})</Text>
+          <View style={styles.sectionRow}>
 
-          {docs.slice(0, 4).map((d) => (
+            <Text style={styles.section}>Recent Documents ({docs.length})</Text>
+
+            {docs.length > 0 ? (
+
+              <TouchableOpacity onPress={() => setTab(2)}><Text style={styles.viewHint}>View All</Text></TouchableOpacity>
+
+            ) : null}
+
+          </View>
+
+          {docs.length === 0 ? (
+
+            <Card><Text style={styles.meta}>No documents uploaded yet.</Text></Card>
+
+          ) : docs.slice(0, 4).map((d) => (
 
             <Card key={String(d.id)}>
 
@@ -771,65 +820,38 @@ const styles = StyleSheet.create({
 
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
 
-  hero: {
-    backgroundColor: colors.customer,
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 4,
-  },
+  greetingRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
 
-  heroRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-
-  heroAvatar: {
+  greetingAvatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: `${colors.customer}18`,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  heroGreeting: { color: 'rgba(255,255,255,0.8)', fontSize: 12 },
+  greetingSmall: { fontSize: 12, color: colors.mutedForeground },
 
-  heroName: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  greetingName: { fontSize: 18, fontWeight: '800', color: colors.foreground },
 
-  heroIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+  greetingBell: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  heroActions: { flexDirection: 'row', gap: 10, marginTop: 16 },
-
-  heroPrimaryBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingVertical: 11,
+  bellDot: {
+    position: 'absolute',
+    top: 8,
+    right: 9,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.destructive,
   },
-
-  heroPrimaryText: { color: colors.customer, fontWeight: '700', fontSize: 14 },
-
-  heroGhostBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderRadius: 12,
-    paddingVertical: 11,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.5)',
-  },
-
-  heroGhostText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
 
@@ -856,45 +878,42 @@ const styles = StyleSheet.create({
 
   quickLabel: { fontSize: 13, fontWeight: '600', color: colors.foreground },
 
-  bankCard: {
-    width: 140,
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 12,
-    marginRight: 10,
-    alignItems: 'center',
+  offerCard: {
+    width: 220,
+    backgroundColor: colors.primary,
+    borderRadius: 16,
+    padding: 16,
+    marginRight: 12,
   },
 
-  bankLogoWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: colors.muted,
+  offerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+
+  offerLogoWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
   },
 
-  bankLogo: { width: 36, height: 36 },
+  offerLogo: { width: 30, height: 30 },
 
-  bankName: { fontSize: 13, fontWeight: '600', color: colors.foreground, textAlign: 'center', minHeight: 34 },
+  offerName: { fontSize: 16, fontWeight: '700', color: '#fff' },
 
-  bankApplyBtn: {
+  offerSub: { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 4, marginBottom: 14 },
+
+  offerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    backgroundColor: colors.customer,
+    gap: 6,
+    backgroundColor: '#fff',
     borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginTop: 8,
-    alignSelf: 'stretch',
+    paddingVertical: 10,
   },
 
-  bankApplyText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  offerBtnText: { color: colors.primary, fontWeight: '700', fontSize: 14 },
 
   appRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 

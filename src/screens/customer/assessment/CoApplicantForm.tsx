@@ -28,7 +28,7 @@ export default function CoApplicantForm({ coApplicant, errors, onChange }: Props
       <Input label="Phone" value={coApplicant.phone} onChangeText={(v) => onChange('phone', v.replace(/\D/g, '').slice(0, 10))} keyboardType="phone-pad" maxLength={10} />
       <Input label="Email" value={coApplicant.email} onChangeText={(v) => onChange('email', v)} keyboardType="email-address" autoCapitalize="none" />
       <Input label="PAN" value={coApplicant.pan} onChangeText={(v) => onChange('pan', v.toUpperCase().slice(0, 10))} autoCapitalize="characters" maxLength={10} />
-      <Input label="Aadhaar" value={coApplicant.aadhaar} onChangeText={(v) => onChange('aadhaar', v.replace(/\D/g, '').slice(0, 12))} keyboardType="number-pad" maxLength={12} />
+      <Input label="Aadhaar (last 4 digits)" value={coApplicant.aadhaar} onChangeText={(v) => onChange('aadhaar', v.replace(/\D/g, '').slice(0, 4))} keyboardType="number-pad" maxLength={4} />
       <Select label="Employment Type" value={coApplicant.employmentType} options={[
         { value: 'salaried', label: 'Salaried' },
         { value: 'self_employed', label: 'Self-employed' },

@@ -58,9 +58,14 @@ export const authService = {
 
   async signOut() {
     try {
-      await apiClient.post('/auth/logout');
+      const { getRefreshToken, setTokens } = await import('../api/apiClient');
+      const rt = getRefreshToken();
+      await apiClient.post('/auth/logout', rt ? { refreshToken: rt } : {});
+      await setTokens(null, null);
       return { error: null };
     } catch (error) {
+      const { setTokens } = await import('../api/apiClient');
+      await setTokens(null, null);
       return { error: { message: 'Sign out failed' } };
     }
   },

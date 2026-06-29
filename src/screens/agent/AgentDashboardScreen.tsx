@@ -19,6 +19,7 @@ import AgentPerformanceChart from '@/src/components/agent/AgentPerformanceChart'
 import CommissionReportPanel from '@/src/components/agent/CommissionReportPanel';
 import { colors } from '@/src/theme';
 import { agentService } from '@/src/services/agentService';
+import { creditCardService, type CreditCard } from '@/src/services/creditCardService';
 import { staffMessagingService } from '@/src/services/staffMessagingService';
 import type { PerformanceAnalytics } from '@/src/services/agentReportService';
 
@@ -48,6 +49,7 @@ export default function AgentDashboardScreen() {
   const [msgText, setMsgText] = useState('');
   const [loading, setLoading] = useState(true);
   const [activity, setActivity] = useState<Record<string, unknown>[]>([]);
+  const [creditCards, setCreditCards] = useState<CreditCard[]>([]);
 
   const refresh = useCallback(async () => {
     try {
@@ -68,6 +70,12 @@ export default function AgentDashboardScreen() {
     const id = setInterval(refresh, 20000);
     return () => clearInterval(id);
   }, [refresh]);
+
+  useEffect(() => {
+    creditCardService.listActive().then((list) => {
+      setCreditCards(Array.isArray(list) ? list.slice(0, 4) : []);
+    }).catch(() => setCreditCards([]));
+  }, []);
 
   useEffect(() => {
     if (!helpOpen) return;
@@ -165,6 +173,20 @@ export default function AgentDashboardScreen() {
             onPress={() => setHelpOpen(true)}
             style={{ marginTop: 8 }}
           />
+
+          <Text style={styles.section}>Credit Cards</Text>
+          <View style={styles.ccGrid}>
+            {(creditCards.length ? creditCards : [{ id: 'browse', name: 'Browse cards', bankName: '' }]).map((card) => (
+              <TouchableOpacity
+                key={card.id}
+                style={styles.ccTile}
+                onPress={() => router.push('/(agent)/credit-cards')}
+              >
+                <Ionicons name="card-outline" size={22} color={colors.agent} />
+                <Text style={styles.ccLabel} numberOfLines={2}>{card.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
           <CommissionReportPanel />
 
@@ -295,4 +317,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  ccGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  ccTile: {
+    width: '47%',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+    gap: 8,
+  },
+  ccLabel: { fontSize: 12, fontWeight: '600', color: colors.foreground, textAlign: 'center' },
 });

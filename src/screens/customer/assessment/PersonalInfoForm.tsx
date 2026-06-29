@@ -47,7 +47,7 @@ export default function PersonalInfoForm({ form, errors, onChange }: Props) {
       <Select label="Marital Status" value={form.maritalStatus} options={maritalOptions} onChange={(v) => onChange('maritalStatus', v)} />
       <Input label="Email" value={form.email} onChangeText={(v) => onChange('email', v)} keyboardType="email-address" autoCapitalize="none" error={errors.email} />
       <Input label="Phone (10 digits)" value={form.phone} onChangeText={(v) => onChange('phone', v.replace(/\D/g, '').slice(0, 10))} keyboardType="phone-pad" maxLength={10} error={errors.phone} />
-      <Input label="Aadhaar" value={form.aadhaar} onChangeText={(v) => onChange('aadhaar', v.replace(/\D/g, '').slice(0, 12))} keyboardType="number-pad" maxLength={12} error={errors.aadhaar} />
+      <Input label="Aadhaar (last 4 digits)" value={form.aadhaar} onChangeText={(v) => onChange('aadhaar', v.replace(/\D/g, '').slice(0, 4))} keyboardType="number-pad" maxLength={4} error={errors.aadhaar} />
       <Input label="PAN" value={form.pan} onChangeText={(v) => onChange('pan', v.toUpperCase().slice(0, 10))} autoCapitalize="characters" maxLength={10} error={errors.pan} />
       <Text style={{ fontSize: 12, color: '#4A5568', marginBottom: 8 }}>You must be at least 18 years old to apply.</Text>
     </>

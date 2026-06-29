@@ -5,28 +5,41 @@ import { apiClient } from '@/src/api/apiClient';
 // @ts-expect-error JS module
 import { customerJourneyService } from '@/src/services/customerJourneyService';
 // @ts-expect-error JS module
-import { getAssessmentDocumentTypes } from '@/src/constants/assessmentDocuments';
+import { mergeAssessmentDocumentDefinitions } from '@/src/constants/assessmentDocuments';
 import { colors } from '@/src/theme';
 import type { AssessmentFormData } from './types';
+import type { EligibilityResult } from '@/src/utils/assessmentEligibility';
+import EligibilityResultSummary from '@/src/components/assessment/EligibilityResultSummary';
 
 type DocType = { type: string; label: string; description?: string };
 
 type Props = {
   form: AssessmentFormData;
   applicationId: string;
+  eligibilityResult?: EligibilityResult | null;
 };
 
-export default function DocumentUploadStep({ form, applicationId }: Props) {
+export default function DocumentUploadStep({ form, applicationId, eligibilityResult }: Props) {
   const [docTypes, setDocTypes] = useState<DocType[]>([]);
   const [uploaded, setUploaded] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<string | null>(null);
 
   useEffect(() => {
-    const types = getAssessmentDocumentTypes(form);
-    setDocTypes(types);
+    const defs = mergeAssessmentDocumentDefinitions({
+      existingLoans: form.existingLoans,
+      hasRunningLoanOrCard: form.hasRunningLoanOrCard,
+    });
+    setDocTypes(
+      (Array.isArray(defs) ? defs : []).map((d: DocType) => ({
+        type: d.type,
+        label: d.label,
+        description: d.description,
+      })),
+    );
     if (applicationId) {
-      customerJourneyService.listDocuments({ applicationId })
-        .then((docs: { documentType?: string; originalFilename?: string; fileName?: string }[]) => {
+      Promise.resolve(customerJourneyService.getMyDocuments(applicationId))
+        .then((res: { data?: { documentType?: string; originalFilename?: string; fileName?: string }[] }) => {
+          const docs = res?.data || [];
           const map: Record<string, string> = {};
           (Array.isArray(docs) ? docs : []).forEach((d) => {
             if (d.documentType) map[d.documentType] = d.originalFilename || d.fileName || 'Uploaded';
@@ -59,6 +72,7 @@ export default function DocumentUploadStep({ form, applicationId }: Props) {
 
   return (
     <>
+      <EligibilityResultSummary result={eligibilityResult ?? null} compact />
       <Text style={styles.title}>Upload required documents</Text>
       {docTypes.map((doc) => (
         <FilePicker

@@ -38,7 +38,7 @@ const PLACEHOLDERS: Record<string, string> = {
   'last name': 'Enter last name',
   'full name': 'Enter full name',
   name: 'Enter your name',
-  aadhaar: '12-digit Aadhaar number',
+  aadhaar: 'Last 4 digits only',
   pan: 'e.g. ABCDE1234F',
   address: 'House no., street, area',
   city: 'Enter city',

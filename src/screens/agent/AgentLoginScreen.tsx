@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
 import Screen from '@/src/components/Screen';
@@ -9,10 +9,19 @@ import { useAuth } from '@/src/contexts/AuthContext';
 import { colors } from '@/src/theme';
 
 export default function AgentLoginScreen() {
-  const { signIn } = useAuth();
+  const { signIn, user, loading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      const role = user.role;
+      if (role === 'agent' || role === 'admin' || role === 'super_admin') {
+        router.replace('/(agent)/(tabs)/dashboard');
+      }
+    }
+  }, [authLoading, user]);
 
   const handleLogin = async () => {
     setLoading(true);

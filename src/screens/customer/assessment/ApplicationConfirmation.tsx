@@ -2,25 +2,31 @@ import React from 'react';
 import { Text, StyleSheet } from 'react-native';
 import Card from '@/src/components/Card';
 import Button from '@/src/components/Button';
+import EligibilityResultSummary from '@/src/components/assessment/EligibilityResultSummary';
 import { colors } from '@/src/theme';
+import type { EligibilityResult } from '@/src/utils/assessmentEligibility';
 
 type Props = {
   applicationId: string;
+  eligibilityResult?: EligibilityResult | null;
   onDone: () => void;
 };
 
-export default function ApplicationConfirmation({ applicationId, onDone }: Props) {
+export default function ApplicationConfirmation({ applicationId, eligibilityResult, onDone }: Props) {
   return (
-    <Card>
-      <Text style={styles.title}>Application submitted!</Text>
-      <Text style={styles.body}>
-        Your loan application has been submitted successfully. Reference: {applicationId}
-      </Text>
-      <Text style={styles.body}>
-        You will receive updates on your registered email and phone. Track status in your dashboard.
-      </Text>
-      <Button title="Go to Dashboard" variant="customer" onPress={onDone} style={{ marginTop: 16 }} />
-    </Card>
+    <>
+      <EligibilityResultSummary result={eligibilityResult ?? null} />
+      <Card>
+        <Text style={styles.title}>Application submitted!</Text>
+        <Text style={styles.body}>
+          Your loan application has been submitted successfully. Reference: {applicationId}
+        </Text>
+        <Text style={styles.body}>
+          You will receive updates on your registered email and phone. Track status in your dashboard.
+        </Text>
+        <Button title="Go to Dashboard" variant="customer" onPress={onDone} style={{ marginTop: 16 }} />
+      </Card>
+    </>
   );
 }
 

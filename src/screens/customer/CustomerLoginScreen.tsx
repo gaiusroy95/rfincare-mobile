@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { Alert, Text } from 'react-native';
 
@@ -42,7 +42,13 @@ function validatePassword(password: string) {
 
 export default function CustomerLoginScreen() {
 
-  const { signIn } = useAuth();
+  const { signIn, user, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace('/(customer)/(tabs)/dashboard');
+    }
+  }, [authLoading, user]);
 
   const [mode, setMode] = useState<'login' | 'signup'>('login');
 

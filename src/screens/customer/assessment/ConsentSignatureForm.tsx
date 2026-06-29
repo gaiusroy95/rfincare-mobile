@@ -10,15 +10,18 @@ import { apiClient } from '@/src/api/apiClient';
 import { applicationAuthService } from '@/src/services/applicationAuthService';
 import { colors } from '@/src/theme';
 import type { AssessmentFormData } from './types';
+import type { EligibilityResult } from '@/src/utils/assessmentEligibility';
+import EligibilityResultSummary from '@/src/components/assessment/EligibilityResultSummary';
 
 type Props = {
   form: AssessmentFormData;
   applicationId: string;
+  eligibilityResult?: EligibilityResult | null;
   onChange: (key: keyof AssessmentFormData, value: unknown) => void;
   onVerified: () => void;
 };
 
-export default function ConsentSignatureForm({ form, applicationId, onChange, onVerified }: Props) {
+export default function ConsentSignatureForm({ form, applicationId, eligibilityResult, onChange, onVerified }: Props) {
   const [otp, setOtp] = useState('');
   const [requesting, setRequesting] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -49,6 +52,7 @@ export default function ConsentSignatureForm({ form, applicationId, onChange, on
 
   return (
     <>
+      <EligibilityResultSummary result={eligibilityResult ?? null} compact />
       <Checkbox
         label="I agree to the consent terms and authorize submission of this application."
         checked={form.consentSignatureAgreed}

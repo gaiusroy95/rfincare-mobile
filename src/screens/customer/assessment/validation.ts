@@ -18,9 +18,9 @@ export function validateStep(step: number, form: AssessmentFormData): Record<str
       }
       req('dateOfBirth', 'Date of birth');
       req('gender', 'Gender');
-      req('aadhaar', 'Aadhaar');
-      if (form.aadhaar && !/^\d{12}$/.test(form.aadhaar.replace(/\D/g, ''))) {
-        errors.aadhaar = 'Aadhaar must be 12 digits';
+      req('aadhaar', 'Aadhaar (last 4 digits)');
+      if (form.aadhaar && !/^\d{4}$/.test(form.aadhaar.replace(/\D/g, ''))) {
+        errors.aadhaar = 'Enter the last 4 digits of your Aadhaar';
       }
       req('pan', 'PAN');
       if (form.pan && !/^[A-Z]{5}\d{4}[A-Z]$/i.test(form.pan)) {

@@ -12,7 +12,7 @@ import { colors } from '@/src/theme';
 import { apiClient, setAccessToken } from '@/src/api/apiClient';
 import { useAuth } from '@/src/contexts/AuthContext';
 // @ts-expect-error JS module
-import { leadService } from '@/src/services/leadService';
+import { leadService, ELIGIBILITY_SESSION_KEY } from '@/src/services/leadService';
 // @ts-expect-error JS module
 import { applicationService as appService } from '@/src/services/apiServices';
 // @ts-expect-error JS module
@@ -35,6 +35,12 @@ import {
   getStoredCredentials,
   persistCredentials,
 } from '@/src/utils/assessmentCredentials';
+// @ts-expect-error JS module
+import { homepageService } from '@/src/services/homepageService';
+import {
+  buildEligibilityInputFromAssessment,
+  type EligibilityResult,
+} from '@/src/utils/assessmentEligibility';
 import { ASSESSMENT_STEPS, createInitialFormData, type AssessmentFormData } from './assessment/types';
 import { validateStep } from './assessment/validation';
 import { buildApplicationPayload } from './assessment/buildPayload';
@@ -61,6 +67,7 @@ export default function AssessmentScreen({ assistedByAgent = false }: Props) {
   const [loading, setLoading] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [eligibilityResult, setEligibilityResult] = useState<EligibilityResult | null>(null);
   const [agentMeta, setAgentMeta] = useState<Record<string, unknown> | null>(null);
   const [submitError, setSubmitError] = useState('');
 
@@ -93,13 +100,23 @@ export default function AssessmentScreen({ assistedByAgent = false }: Props) {
         }
       } catch { /* */ }
     } else if (!params.resume) {
+      // Prefill from the eligibility check the customer just completed.
+      let eligibilityFormData: Record<string, unknown> | null = null;
+      try {
+        const stored = await AsyncStorage.getItem(ELIGIBILITY_SESSION_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          eligibilityFormData = parsed?.formData || parsed?.payload?.formData || null;
+        }
+      } catch { /* ignore */ }
+
       const entry = buildAssessmentEntryState({
         initialFormData: createInitialFormData(),
         financialHistoryInitial: FINANCIAL_HISTORY_INITIAL,
         financialHistoryQuestions: FINANCIAL_HISTORY_QUESTIONS,
         locationState: { loanType: params.loanType },
         searchParams: { get: (k: string) => (k === 'loanType' ? params.loanType || null : null) },
-        sessionFormData: null,
+        sessionFormData: eligibilityFormData,
       });
       merged = { ...merged, ...entry };
     }
@@ -120,6 +137,18 @@ export default function AssessmentScreen({ assistedByAgent = false }: Props) {
       agentApplicationService.getProfile().then(setAgentMeta).catch(() => {});
     }
   }, [hydrate, assistedByAgent]);
+
+  const fetchEligibility = useCallback(async (formData: AssessmentFormData) => {
+    try {
+      const res = await homepageService.calculateEligibility(
+        buildEligibilityInputFromAssessment(formData as unknown as Record<string, unknown>),
+      );
+      setEligibilityResult(res);
+      return res;
+    } catch {
+      return null;
+    }
+  }, []);
 
   const authenticateApplicant = async (): Promise<string> => {
     if (isAuthenticated && user?.id) return user.id;
@@ -217,6 +246,7 @@ export default function AssessmentScreen({ assistedByAgent = false }: Props) {
       try {
         const customerId = await authenticateApplicant();
         await ensureDraft(customerId);
+        await fetchEligibility(form);
         setStep(6);
         await saveNow();
       } catch (e: unknown) {
@@ -284,6 +314,7 @@ export default function AssessmentScreen({ assistedByAgent = false }: Props) {
       const submitResult = await applicationService.submitApplication(id);
       if (submitResult?.error) throw new Error(submitResult.error.message);
 
+      await fetchEligibility(form);
       await clearAssessmentDraft();
       setSubmitted(true);
     } catch (e: unknown) {
@@ -298,7 +329,13 @@ export default function AssessmentScreen({ assistedByAgent = false }: Props) {
 
   const renderStep = () => {
     if (submitted) {
-      return <ApplicationConfirmation applicationId={appId} onDone={() => router.replace('/(customer)/(tabs)/dashboard')} />;
+      return (
+        <ApplicationConfirmation
+          applicationId={appId}
+          eligibilityResult={eligibilityResult}
+          onDone={() => router.replace('/(customer)/(tabs)/dashboard')}
+        />
+      );
     }
     switch (step) {
       case 0: return <PersonalInfoForm form={form} errors={errors} onChange={update} />;
@@ -307,11 +344,12 @@ export default function AssessmentScreen({ assistedByAgent = false }: Props) {
       case 3: return <FinancialInfoForm form={form} errors={errors} onChange={update} />;
       case 4: return <BankPreferencesStep form={form} errors={errors} onChange={update} />;
       case 5: return <ReviewSubmitForm form={form} errors={errors} onChange={update} />;
-      case 6: return <DocumentUploadStep form={form} applicationId={appId} />;
+      case 6: return <DocumentUploadStep form={form} applicationId={appId} eligibilityResult={eligibilityResult} />;
       case 7: return (
         <ConsentSignatureForm
           form={form}
           applicationId={appId}
+          eligibilityResult={eligibilityResult}
           onChange={update}
           onVerified={() => update('otpVerified', true)}
         />

@@ -22,7 +22,9 @@ export default function AgentDocumentCenterScreen() {
 
   useEffect(() => {
     if (!selectedId) return;
-    documentManagementService.listDocuments(selectedId).then((r: { data?: unknown[] }) => setDocs(r?.data || r || [])).catch(() => {});
+    Promise.resolve(documentManagementService.getDocumentsByApplication(selectedId))
+      .then((r: { documents?: unknown[]; data?: unknown[] }) => setDocs(r?.documents || r?.data || (Array.isArray(r) ? r : [])))
+      .catch(() => {});
   }, [selectedId]);
 
   const upload = async () => {

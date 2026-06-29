@@ -6,6 +6,7 @@ import {
   setTokens,
   setOnAuthFailure,
   getRefreshToken,
+  getAccessToken,
 } from '@/src/api/apiClient';
 
 type User = { id: string; email: string; role: string };
@@ -16,6 +17,7 @@ type AuthContextType = {
   userProfile: Profile | null;
   loading: boolean;
   profileLoading: boolean;
+  isAuthenticated: boolean;
   signIn: (email: string, password: string) => Promise<{ data?: unknown; error?: { message: string } }>;
   signOut: () => Promise<void>;
   updateProfile: (data: Record<string, unknown>) => Promise<{ error?: { message: string } }>;
@@ -58,16 +60,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUserProfile(null);
       return;
     }
-    try {
-      const res = await apiClient.post('/auth/refresh', { refreshToken: rt });
-      await setTokens(res.data?.accessToken, res.data?.refreshToken ?? rt);
-      await loadProfile();
-    } catch {
-      await setTokens(null, null);
-      setUser(null);
-      setUserProfile(null);
+
+    // Reuse a still-valid access token before forcing a refresh (faster cold start).
+    const at = getAccessToken();
+    if (at) {
+      try {
+        const res = await apiClient.get('/auth/me');
+        setUser(res.data?.user ?? null);
+        setUserProfile(res.data?.profile ?? null);
+        return;
+      } catch (err: unknown) {
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        if (status && status !== 401 && status !== 403) {
+          // Transient/network error — keep stored tokens; user stays signed in offline.
+          return;
+        }
+      }
     }
-  }, [loadProfile]);
+
+    try {
+      const res = await apiClient.post(
+        '/auth/refresh',
+        { refreshToken: rt },
+        { headers: { Authorization: undefined } },
+      );
+      await setTokens(res.data?.accessToken, res.data?.refreshToken ?? rt);
+      const me = await apiClient.get('/auth/me');
+      setUser(me.data?.user ?? null);
+      setUserProfile(me.data?.profile ?? null);
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 401 || status === 403) {
+        await setTokens(null, null);
+        setUser(null);
+        setUserProfile(null);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     setOnAuthFailure(() => {
@@ -97,11 +126,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    const rt = getRefreshToken();
     try {
-      const rt = getRefreshToken();
-      await apiClient.post('/auth/logout', rt ? { refreshToken: rt } : {});
+      if (rt) {
+        await apiClient.post('/auth/logout', { refreshToken: rt });
+      }
     } catch {
-      /* ignore */
+      /* still clear local session */
     } finally {
       await setTokens(null, null);
       setUser(null);
@@ -134,6 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         userProfile,
         loading,
         profileLoading,
+        isAuthenticated: !!user,
         signIn,
         signOut,
         updateProfile,

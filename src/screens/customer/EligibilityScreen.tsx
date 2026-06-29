@@ -35,6 +35,8 @@ import { CREDIT_SCORE_RANGE_OPTIONS } from '@/src/constants/creditScoreRanges';
 import { useLoanProducts } from '@/src/contexts/LoanProductsContext';
 import { useMarketing } from '@/src/contexts/MarketingContext';
 
+const RESEND_COOLDOWN_SEC = 60;
+
 
 
 export default function EligibilityScreen() {
@@ -68,6 +70,8 @@ export default function EligibilityScreen() {
 
   const [verifying, setVerifying] = useState(false);
 
+  const [resendTimer, setResendTimer] = useState(0);
+
   const [leadId, setLeadId] = useState('');
 
   const [otpSettings, setOtpSettings] = useState<{ requireMobileOtp: boolean; requireEmailOtp: boolean }>({
@@ -100,6 +104,14 @@ export default function EligibilityScreen() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (resendTimer <= 0) return;
+    const id = setTimeout(() => setResendTimer((t) => Math.max(0, t - 1)), 1000);
+    return () => clearTimeout(id);
+  }, [resendTimer]);
+
+  const startResendCooldown = () => setResendTimer(RESEND_COOLDOWN_SEC);
 
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -135,6 +147,7 @@ export default function EligibilityScreen() {
       setOtpSent(true);
       setMobileOtp('');
       setEmailOtp('');
+      startResendCooldown();
       const channels = [
         res?.requireMobileOtp !== false ? 'mobile' : null,
         res?.requireEmailOtp !== false ? 'email' : null,
@@ -177,11 +190,13 @@ export default function EligibilityScreen() {
   };
 
   const resendOtp = async () => {
+    if (resendTimer > 0) return;
     setSending(true);
     try {
       await leadService.requestOtp({ phone: mobile, email: email.trim(), leadId });
       setMobileOtp('');
       setEmailOtp('');
+      startResendCooldown();
       Alert.alert('OTP resent', 'A new code has been sent.');
     } catch (e: unknown) {
       Alert.alert('Could not resend', (e as Error).message || 'Try again.');
@@ -290,7 +305,19 @@ export default function EligibilityScreen() {
 
             <Button title={verifying ? 'Verifying…' : 'Verify & Continue'} onPress={verifyOtp} variant="customer" disabled={verifying} style={{ marginTop: 8 }} />
 
-            <Button title="Resend OTP" variant="outline" onPress={resendOtp} disabled={sending} style={{ marginTop: 8 }} />
+            <Button
+              title={
+                sending
+                  ? 'Sending…'
+                  : resendTimer > 0
+                    ? `Resend OTP in ${resendTimer}s`
+                    : 'Resend OTP'
+              }
+              variant="outline"
+              onPress={resendOtp}
+              disabled={sending || resendTimer > 0}
+              style={{ marginTop: 8 }}
+            />
 
             <Button
               title="Change details"
@@ -299,6 +326,7 @@ export default function EligibilityScreen() {
                 setOtpSent(false);
                 setMobileOtp('');
                 setEmailOtp('');
+                setResendTimer(0);
               }}
               style={{ marginTop: 4 }}
             />

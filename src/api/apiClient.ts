@@ -76,15 +76,24 @@ apiClient.interceptors.response.use(
     if (!refreshingPromise) {
       refreshingPromise = (async () => {
         if (!refreshToken) return null;
-        const res = await apiClient.post(
-          '/auth/refresh',
-          { refreshToken },
-          { headers: { Authorization: undefined } },
-        );
-        const newAccess = res.data?.accessToken as string;
-        const newRefresh = res.data?.refreshToken as string | undefined;
-        await setTokens(newAccess, newRefresh ?? refreshToken);
-        return newAccess;
+        try {
+          const res = await apiClient.post(
+            '/auth/refresh',
+            { refreshToken },
+            { headers: { Authorization: undefined } },
+          );
+          const newAccess = res.data?.accessToken as string;
+          const newRefresh = res.data?.refreshToken as string | undefined;
+          await setTokens(newAccess, newRefresh ?? refreshToken);
+          return newAccess;
+        } catch (refreshErr: unknown) {
+          const status = (refreshErr as AxiosError)?.response?.status;
+          if (status === 401 || status === 403) {
+            await setTokens(null, null);
+            onAuthFailure?.();
+          }
+          return null;
+        }
       })().finally(() => {
         refreshingPromise = null;
       });
@@ -94,8 +103,6 @@ apiClient.interceptors.response.use(
       const token = await refreshingPromise;
       if (!token) throw error;
     } catch {
-      await setTokens(null, null);
-      onAuthFailure?.();
       throw error;
     }
 
