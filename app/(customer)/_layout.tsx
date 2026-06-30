@@ -1,7 +1,9 @@
 import { Stack } from 'expo-router';
+import { CustomerSidebarProvider } from '@/src/components/customer/CustomerSidebar';
 
 export default function CustomerLayout() {
   return (
+    <CustomerSidebarProvider>
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="login" />
@@ -16,7 +18,7 @@ export default function CustomerLayout() {
       <Stack.Screen name="product-comparison" />
       <Stack.Screen name="bank-compare" />
       <Stack.Screen name="product/[loanType]" />
-      <Stack.Screen name="profile" />
+      <Stack.Screen name="edit-profile" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="documents" />
       <Stack.Screen name="bank-selection" />
@@ -25,5 +27,6 @@ export default function CustomerLayout() {
       <Stack.Screen name="forgot-password" />
       <Stack.Screen name="auth-center" />
     </Stack>
+    </CustomerSidebarProvider>
   );
 }

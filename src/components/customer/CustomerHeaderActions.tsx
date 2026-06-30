@@ -3,18 +3,22 @@ import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { colors } from '@/src/theme';
+import { SidebarToggle } from '@/src/components/customer/CustomerSidebar';
 
 type Props = {
   showProfile?: boolean;
   showSettings?: boolean;
+  showMenu?: boolean;
 };
 
 export default function CustomerHeaderActions({
   showProfile = true,
   showSettings = true,
+  showMenu = true,
 }: Props) {
   return (
     <View style={styles.row}>
+      {showMenu ? <SidebarToggle /> : null}
       {showProfile ? (
         <TouchableOpacity
           style={styles.btn}

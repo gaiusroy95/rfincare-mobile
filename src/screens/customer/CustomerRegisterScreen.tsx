@@ -4,10 +4,9 @@ import { router } from 'expo-router';
 import Screen from '@/src/components/Screen';
 import Button from '@/src/components/Button';
 import Input from '@/src/components/Input';
+import ContactDataConsentBlock from '@/src/components/ContactDataConsentBlock';
 // @ts-expect-error JS module
 import { authService } from '@/src/services/authService';
-// @ts-expect-error JS module
-import { bankService } from '@/src/services/apiServices';
 
 const STEPS = ['Email', 'Demographics', 'Employment', 'Bank Info'];
 
@@ -20,10 +19,16 @@ export default function CustomerRegisterScreen() {
     bankName: '', accountName: '',
   });
   const [loading, setLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [contactConsentAccepted, setContactConsentAccepted] = useState(false);
 
   const update = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const submit = async () => {
+    if (!termsAccepted || !contactConsentAccepted) {
+      Alert.alert('Consent required', 'Please accept the terms and contact consent before registering.');
+      return;
+    }
     setLoading(true);
     try {
       await authService.signUpCustomer(form);
@@ -41,6 +46,12 @@ export default function CustomerRegisterScreen() {
           <Input label="Email" value={form.email} onChangeText={(v) => update('email', v)} keyboardType="email-address" />
           <Input label="Full Name" value={form.fullName} onChangeText={(v) => update('fullName', v)} />
           <Input label="Phone" value={form.phone} onChangeText={(v) => update('phone', v)} keyboardType="phone-pad" />
+          <ContactDataConsentBlock
+            termsAccepted={termsAccepted}
+            contactConsentAccepted={contactConsentAccepted}
+            onTermsChange={setTermsAccepted}
+            onContactConsentChange={setContactConsentAccepted}
+          />
         </>
       )}
       {step === 1 && (
@@ -67,7 +78,17 @@ export default function CustomerRegisterScreen() {
         </>
       )}
       {step < 3 ? (
-        <Button title="Next" onPress={() => setStep(step + 1)} variant="customer" />
+        <Button
+          title="Next"
+          onPress={() => {
+            if (step === 0 && (!termsAccepted || !contactConsentAccepted)) {
+              Alert.alert('Consent required', 'Please accept the terms and contact consent to continue.');
+              return;
+            }
+            setStep(step + 1);
+          }}
+          variant="customer"
+        />
       ) : (
         <Button title="Submit Registration" onPress={submit} loading={loading} variant="customer" />
       )}

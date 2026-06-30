@@ -11,6 +11,7 @@ import { bankService } from '@/src/services/apiServices';
 import { getMarketplaceCompareKey, listMarketplaceOffers } from '@/src/utils/bankMarketplace';
 import { PRODUCT_COMPARISON_ROWS } from '@/src/constants/bankProductComparisonFields';
 import { loadCompareSelection } from '@/src/utils/marketplaceCompareStorage';
+import { openAssessmentOrEligibilityFirst } from '@/src/utils/eligibilityGate';
 
 type Offer = Record<string, unknown> & {
   name?: string;
@@ -118,9 +119,8 @@ export default function BankCompareScreen() {
               title={`Apply — ${o.name}`}
               variant={i === bestRateIndex ? 'customer' : 'outline'}
               onPress={() =>
-                router.push({
-                  pathname: '/(customer)/assessment',
-                  params: { loanType: String(o.loanType || loanCategory) },
+                void openAssessmentOrEligibilityFirst({
+                  loanType: String(o.loanType || loanCategory),
                 })
               }
               style={{ marginBottom: 8 }}

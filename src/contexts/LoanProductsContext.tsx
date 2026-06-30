@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 // @ts-expect-error JS module
-import { LOAN_PRODUCTS as STATIC_LOAN_PRODUCTS, setLoanProductRegistry } from '@/src/constants/loanProducts';
+import { LOAN_PRODUCTS as STATIC_LOAN_PRODUCTS, setLoanProductRegistry, ensureCreditCardProduct } from '@/src/constants/loanProducts';
 // @ts-expect-error JS module
 import { loanProductCatalogService } from '@/src/services/loanProductCatalogService';
 
@@ -18,7 +18,7 @@ export function LoanProductsProvider({ children }: { children: React.ReactNode }
     setLoading(true);
     const { data, error } = await loanProductCatalogService.listPublic();
     if (!error && Array.isArray(data) && data.length) {
-      setProducts(data);
+      setProducts(ensureCreditCardProduct(data));
       setLoanProductRegistry(data);
     } else {
       setProducts(STATIC_LOAN_PRODUCTS);

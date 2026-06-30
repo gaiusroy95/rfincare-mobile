@@ -4,19 +4,21 @@ import { WebView } from 'react-native-webview';
 import { useLocalSearchParams } from 'expo-router';
 import Screen from '@/src/components/Screen';
 import { colors } from '@/src/theme';
-// @ts-expect-error JS module
 import { homepageService } from '@/src/services/homepageService';
-// @ts-expect-error JS module
 import { prepareLegalHtml } from '@/src/utils/legalContent';
+
+import { getLegalPageTitle } from '@/src/constants/legalPages';
 
 const SLUG_ALIASES: Record<string, string> = {
   terms: 'terms-of-service',
-  'terms-of-service': 'terms-of-service',
   privacy: 'privacy-policy',
-  'privacy-policy': 'privacy-policy',
   cookie: 'cookie-policy',
-  'cookie-policy': 'cookie-policy',
 };
+
+function resolveLegalSlug(raw?: string) {
+  const key = String(raw || 'terms-of-service').trim().toLowerCase();
+  return SLUG_ALIASES[key] || key;
+}
 
 function buildHtmlDocument(bodyHtml: string) {
   return `<!DOCTYPE html>
@@ -57,7 +59,7 @@ export default function LegalScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const resolvedSlug = SLUG_ALIASES[String(slug || 'terms-of-service')] || 'terms-of-service';
+  const resolvedSlug = resolveLegalSlug(slug);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,7 +83,7 @@ export default function LegalScreen() {
 
   const rawHtml = (page?.bodyHtml || page?.body_html || page?.content || page?.body || '') as string;
   const html = useMemo(() => (rawHtml ? prepareLegalHtml(rawHtml) : ''), [rawHtml]);
-  const title = String(page?.title || 'Legal');
+  const title = String(page?.title || getLegalPageTitle(resolvedSlug));
 
   if (loading) {
     return (

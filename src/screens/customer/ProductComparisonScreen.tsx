@@ -7,7 +7,7 @@ import CustomerHeaderActions from '@/src/components/customer/CustomerHeaderActio
 import Button from '@/src/components/Button';
 import CompareTable, { type CompareColumn, type CompareRow } from '@/src/components/CompareTable';
 import { useLoanProducts } from '@/src/contexts/LoanProductsContext';
-import { colors } from '@/src/theme';
+import { openAssessmentOrEligibilityFirst } from '@/src/utils/eligibilityGate';
 import { PRODUCT_COMPARISON_ROWS } from '@/src/constants/bankProductComparisonFields';
 
 const MAX_PRODUCT_COMPARE = 8;
@@ -18,6 +18,7 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   Briefcase: 'briefcase',
   Car: 'car',
   GraduationCap: 'school',
+  CreditCard: 'card',
 };
 
 const COLOR_MAP: Record<string, string> = {
@@ -157,13 +158,14 @@ export default function ProductComparisonScreen() {
               </View>
 
               <Button
-                title="Apply for this product"
+                title={p.slug === 'credit_card' || p.apiKey === 'credit_card' ? 'View credit cards' : 'Apply for this product'}
                 variant="customer"
                 onPress={() =>
-                  router.push({
-                    pathname: '/(customer)/assessment',
-                    params: { loanType: String(p.slug || p.apiKey) },
-                  })
+                  p.slug === 'credit_card' || p.apiKey === 'credit_card'
+                    ? router.push('/(customer)/credit-cards')
+                    : void openAssessmentOrEligibilityFirst({
+                        loanType: String(p.slug || p.apiKey),
+                      })
                 }
                 style={{ marginTop: 10 }}
               />

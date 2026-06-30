@@ -12,8 +12,6 @@ import Screen from '@/src/components/Screen';
 
 import CustomerHeaderActions from '@/src/components/customer/CustomerHeaderActions';
 
-import BrandLogo from '@/src/components/BrandLogo';
-
 import Button from '@/src/components/Button';
 
 import Input from '@/src/components/Input';
@@ -326,11 +324,7 @@ export default function HomeScreen() {
 
   return (
 
-    <Screen title="Home" headerRight={<CustomerHeaderActions />}>
-
-      <BrandLogo size="lg" style={{ marginBottom: 16 }} />
-
-
+    <Screen branded headerRight={<CustomerHeaderActions />}>
 
       <View style={styles.hero}>
 

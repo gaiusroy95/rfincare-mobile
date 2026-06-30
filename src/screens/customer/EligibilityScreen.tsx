@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 
 import { Text, StyleSheet, Alert } from 'react-native';
 
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -34,6 +34,7 @@ import { CREDIT_SCORE_RANGE_OPTIONS } from '@/src/constants/creditScoreRanges';
 
 import { useLoanProducts } from '@/src/contexts/LoanProductsContext';
 import { useMarketing } from '@/src/contexts/MarketingContext';
+import ContactDataConsentBlock from '@/src/components/ContactDataConsentBlock';
 
 const RESEND_COOLDOWN_SEC = 60;
 
@@ -41,6 +42,7 @@ const RESEND_COOLDOWN_SEC = 60;
 
 export default function EligibilityScreen() {
 
+  const params = useLocalSearchParams<{ loanType?: string }>();
   const { products } = useLoanProducts();
   const { trackEvent } = useMarketing();
 
@@ -79,7 +81,12 @@ export default function EligibilityScreen() {
     requireEmailOtp: true,
   });
 
-  const [loanType, setLoanType] = useState(productOptions[0]?.value || 'personal_loan');
+  const initialLoanType =
+    (Array.isArray(params.loanType) ? params.loanType[0] : params.loanType)
+    || productOptions[0]?.value
+    || 'personal_loan';
+
+  const [loanType, setLoanType] = useState(initialLoanType);
 
   const [amount, setAmount] = useState('');
 
@@ -89,9 +96,17 @@ export default function EligibilityScreen() {
 
   const [creditScoreRange, setCreditScoreRange] = useState('700_749');
 
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [contactConsentAccepted, setContactConsentAccepted] = useState(false);
+
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
 
 
+
+  useEffect(() => {
+    const fromParams = Array.isArray(params.loanType) ? params.loanType[0] : params.loanType;
+    if (fromParams) setLoanType(fromParams);
+  }, [params.loanType]);
 
   useEffect(() => {
     leadService
@@ -126,6 +141,10 @@ export default function EligibilityScreen() {
     }
     if (!/^[6-9]\d{9}$/.test(mobile)) {
       Alert.alert('Invalid mobile', 'Enter a valid 10-digit Indian mobile number.');
+      return;
+    }
+    if (!termsAccepted || !contactConsentAccepted) {
+      Alert.alert('Consent required', 'Please accept the terms and contact consent to continue.');
       return;
     }
 
@@ -276,6 +295,14 @@ export default function EligibilityScreen() {
         <Input label="Mobile (10 digits)" value={mobile} onChangeText={(v) => setMobile(v.replace(/\D/g, '').slice(0, 10))} keyboardType="phone-pad" maxLength={10} editable={!otpSent} />
 
         <Input label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" editable={!otpSent} />
+
+        <ContactDataConsentBlock
+          termsAccepted={termsAccepted}
+          contactConsentAccepted={contactConsentAccepted}
+          onTermsChange={setTermsAccepted}
+          onContactConsentChange={setContactConsentAccepted}
+          disabled={otpSent}
+        />
 
         {!otpSent ? (
           <Button title={sending ? 'Sending…' : 'Send OTP'} onPress={requestOtp} variant="customer" disabled={sending} />

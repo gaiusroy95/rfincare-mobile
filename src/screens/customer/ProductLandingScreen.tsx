@@ -5,6 +5,7 @@ import Screen from '@/src/components/Screen';
 import Button from '@/src/components/Button';
 import { useLoanProducts } from '@/src/contexts/LoanProductsContext';
 import { colors } from '@/src/theme';
+import { openAssessmentOrEligibilityFirst } from '@/src/utils/eligibilityGate';
 
 export default function ProductLandingScreen() {
   const { loanType } = useLocalSearchParams<{ loanType: string }>();
@@ -17,7 +18,7 @@ export default function ProductLandingScreen() {
       <Text style={styles.desc}>{product?.description || 'Explore this loan product and apply today.'}</Text>
       {(product?.features || []).map((f, i) => <Text key={i} style={styles.feature}>• {f}</Text>)}
       <Button title="Check Eligibility" variant="customer" onPress={() => router.push('/(customer)/eligibility')} />
-      <Button title="Apply Now" onPress={() => router.push({ pathname: '/(customer)/assessment', params: { loanType } })} style={{ marginTop: 8 }} />
+      <Button title="Apply Now" onPress={() => void openAssessmentOrEligibilityFirst({ loanType: String(loanType) })} style={{ marginTop: 8 }} />
       <Button title="Compare Banks" variant="outline" onPress={() => router.push('/(customer)/(tabs)/marketplace')} style={{ marginTop: 8 }} />
     </Screen>
   );

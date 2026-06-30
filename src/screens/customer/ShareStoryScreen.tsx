@@ -22,13 +22,45 @@ export default function ShareStoryScreen() {
   };
 
   const submit = async () => {
+    if (!name.trim()) {
+      Alert.alert('Name required', 'Please enter your name.');
+      return;
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+      Alert.alert('Invalid email', 'Please enter a valid email address.');
+      return;
+    }
+    if (story.trim().length < 20) {
+      Alert.alert('Story too short', 'Please share at least 20 characters about your experience.');
+      return;
+    }
     setLoading(true);
     try {
       const formPhoto = photo ? { uri: photo.uri, name: 'photo.jpg', type: 'image/jpeg' } as unknown as File : null;
-      await homepageService.submitStory({ name, email, phone, story, storyType }, formPhoto);
+      await homepageService.submitStory(
+        {
+          submitterName: name.trim(),
+          submitterEmail: email.trim(),
+          submitterPhone: phone.trim(),
+          storyType,
+          storyText: story.trim(),
+        },
+        formPhoto,
+      );
       Alert.alert('Thank you!', 'Your story has been submitted for review.');
+      setName('');
+      setEmail('');
+      setPhone('');
+      setStory('');
+      setPhoto(null);
     } catch (e: unknown) {
-      Alert.alert('Error', (e as Error).message);
+      const err = e as { response?: { data?: { error?: string; message?: string } }; message?: string };
+      const message =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to submit your story. Please try again.';
+      Alert.alert('Error', message);
     }
     setLoading(false);
   };

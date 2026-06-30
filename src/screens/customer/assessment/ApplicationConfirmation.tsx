@@ -3,18 +3,21 @@ import { Text, StyleSheet } from 'react-native';
 import Card from '@/src/components/Card';
 import Button from '@/src/components/Button';
 import EligibilityResultSummary from '@/src/components/assessment/EligibilityResultSummary';
+import SelectedProductSummary from '@/src/components/assessment/SelectedProductSummary';
 import { colors } from '@/src/theme';
 import type { EligibilityResult } from '@/src/utils/assessmentEligibility';
 
 type Props = {
   applicationId: string;
+  loanPurpose?: string | null;
   eligibilityResult?: EligibilityResult | null;
   onDone: () => void;
 };
 
-export default function ApplicationConfirmation({ applicationId, eligibilityResult, onDone }: Props) {
+export default function ApplicationConfirmation({ applicationId, loanPurpose, eligibilityResult, onDone }: Props) {
   return (
     <>
+      <SelectedProductSummary loanPurpose={loanPurpose} />
       <EligibilityResultSummary result={eligibilityResult ?? null} />
       <Card>
         <Text style={styles.title}>Application submitted!</Text>

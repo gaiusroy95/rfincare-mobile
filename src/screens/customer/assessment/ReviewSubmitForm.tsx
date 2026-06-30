@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Card from '@/src/components/Card';
 import Checkbox from '@/src/components/Checkbox';
 import { colors } from '@/src/theme';
+import SelectedProductSummary from '@/src/components/assessment/SelectedProductSummary';
 import type { AssessmentFormData } from './types';
 
 type Props = {
@@ -107,8 +108,9 @@ export default function ReviewSubmitForm({ form, errors, onChange }: Props) {
         {form.monthlyIncome ? <Row label="Monthly income" value={formatInr(form.monthlyIncome)} /> : null}
       </Segment>
 
+      <SelectedProductSummary loanPurpose={form.loanPurpose} />
+
       <Segment icon="cash-outline" title="Loan details" accent={colors.success}>
-        <Row label="Loan purpose" value={prettify(form.loanPurpose)} />
         <Row label="Requested amount" value={formatInr(form.loanAmount)} />
         <Row label="Credit score range" value={prettify(form.creditScoreRange)} />
         {form.monthlyDebtPayments ? <Row label="Existing EMI" value={formatInr(form.monthlyDebtPayments)} /> : null}

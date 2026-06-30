@@ -12,6 +12,7 @@ import { colors } from '@/src/theme';
 import type { AssessmentFormData } from './types';
 import type { EligibilityResult } from '@/src/utils/assessmentEligibility';
 import EligibilityResultSummary from '@/src/components/assessment/EligibilityResultSummary';
+import SelectedProductSummary from '@/src/components/assessment/SelectedProductSummary';
 
 type Props = {
   form: AssessmentFormData;
@@ -52,6 +53,7 @@ export default function ConsentSignatureForm({ form, applicationId, eligibilityR
 
   return (
     <>
+      <SelectedProductSummary loanPurpose={form.loanPurpose} compact />
       <EligibilityResultSummary result={eligibilityResult ?? null} compact />
       <Checkbox
         label="I agree to the consent terms and authorize submission of this application."

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { colors } from '@/src/theme';
+import { openAssessmentOrEligibilityFirst } from '@/src/utils/eligibilityGate';
 
 type Action = {
   title: string;
@@ -22,10 +23,10 @@ const ACTIONS: Action[] = [
   },
   {
     title: 'Apply for Loan',
-    subtitle: '8-step assessment',
+    subtitle: 'After eligibility check',
     icon: 'document-text',
     color: colors.primary,
-    route: '/(customer)/assessment',
+    route: 'assessment',
   },
   {
     title: 'Bank Marketplace',
@@ -56,7 +57,13 @@ export default function HomeQuickActions({ showLogin, onStatusCheck }: Props) {
           key={action.title}
           style={styles.card}
           activeOpacity={0.85}
-          onPress={() => router.push(action.route as never)}
+          onPress={() => {
+            if (action.route === 'assessment') {
+              void openAssessmentOrEligibilityFirst();
+              return;
+            }
+            router.push(action.route as never);
+          }}
         >
           <View style={[styles.iconWrap, { backgroundColor: `${action.color}18` }]}>
             <Ionicons name={action.icon} size={26} color={action.color} />

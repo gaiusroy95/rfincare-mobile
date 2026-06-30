@@ -50,6 +50,7 @@ import { creditCardService, type CreditCard } from '@/src/services/creditCardSer
 // @ts-expect-error JS module
 
 import { getBankLogoUrl } from '@/src/utils/bankBranding';
+import { openAssessmentOrEligibilityFirst } from '@/src/utils/eligibilityGate';
 
 
 
@@ -396,7 +397,7 @@ export default function CustomerDashboardScreen() {
 
               <Text style={styles.meta}>Start a new application to track its progress here.</Text>
 
-              <Button title="New Application" variant="customer" onPress={() => router.push('/(customer)/assessment')} style={{ marginTop: 12 }} />
+              <Button title="New Application" variant="customer" onPress={() => void openAssessmentOrEligibilityFirst()} style={{ marginTop: 12 }} />
 
             </Card>
 
@@ -416,7 +417,7 @@ export default function CustomerDashboardScreen() {
 
                 activeOpacity={0.85}
 
-                onPress={() => router.push({ pathname: '/(customer)/assessment', params: { loanType: q.loanType } })}
+                onPress={() => void openAssessmentOrEligibilityFirst({ loanType: q.loanType })}
 
               >
 
@@ -432,31 +433,25 @@ export default function CustomerDashboardScreen() {
 
             ))}
 
-            {(creditCards.length ? creditCards : [{ id: 'browse', name: 'Credit Cards', bankName: 'Compare' }]).map((card) => (
+            <TouchableOpacity
 
-              <TouchableOpacity
+              style={styles.quickCard}
 
-                key={card.id}
+              activeOpacity={0.85}
 
-                style={styles.quickCard}
+              onPress={() => router.push('/(customer)/credit-cards')}
 
-                activeOpacity={0.85}
+            >
 
-                onPress={() => router.push('/(customer)/credit-cards')}
+              <View style={[styles.quickIcon, { backgroundColor: '#EDE9FE' }]}>
 
-              >
+                <Ionicons name="pricetags-outline" size={22} color="#6D28D9" />
 
-                <View style={[styles.quickIcon, { backgroundColor: '#EDE9FE' }]}>
+              </View>
 
-                  <Ionicons name="card-outline" size={22} color="#6D28D9" />
+              <Text style={styles.quickLabel}>Offers</Text>
 
-                </View>
-
-                <Text style={styles.quickLabel} numberOfLines={2}>{card.name}</Text>
-
-              </TouchableOpacity>
-
-            ))}
+            </TouchableOpacity>
 
           </View>
 
@@ -590,7 +585,7 @@ export default function CustomerDashboardScreen() {
 
           scrollEnabled={false}
 
-          ListEmptyComponent={<EmptyState title="No applications" message="Start a new application to see it here." actionLabel="Apply Now" onAction={() => router.push('/(customer)/assessment')} />}
+          ListEmptyComponent={<EmptyState title="No applications" message="Start a new application to see it here." actionLabel="Apply Now" onAction={() => void openAssessmentOrEligibilityFirst()} />}
 
           renderItem={({ item }) => (
 

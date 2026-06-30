@@ -1,26 +1,30 @@
 import { ExpoConfig, ConfigContext } from 'expo/config';
 
+const APP_DISPLAY_NAME = 'Rfincare';
+const APP_SLUG = 'rfincare';
+const SPLASH_BACKGROUND = '#E85A24';
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: '\u200B',
-  slug: 'rfincare',
+  name: APP_DISPLAY_NAME,
+  slug: APP_SLUG,
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/images/logo.jpg',
-  scheme: 'rfincare',
+  scheme: APP_SLUG,
   userInterfaceStyle: 'light',
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'com.rfincare.app',
     infoPlist: {
-      CFBundleDisplayName: 'rfincare',
+      CFBundleDisplayName: APP_DISPLAY_NAME,
       ITSAppUsesNonExemptEncryption: false,
     },
   },
   android: {
     package: 'com.rfincare.app',
     adaptiveIcon: {
-      backgroundColor: '#E85A24',
+      backgroundColor: SPLASH_BACKGROUND,
       foregroundImage: './assets/images/logo.jpg',
     },
   },
@@ -29,7 +33,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-notifications',
       {
         icon: './assets/images/logo.jpg',
-        color: '#E85A24',
+        color: SPLASH_BACKGROUND,
         defaultChannel: 'rfincare-updates',
       },
     ],
@@ -38,7 +42,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         image: './assets/images/logo.jpg',
         resizeMode: 'contain',
-        backgroundColor: '#E85A24',
+        backgroundColor: SPLASH_BACKGROUND,
         imageWidth: 220,
       },
     ],

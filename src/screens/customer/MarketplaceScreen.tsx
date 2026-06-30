@@ -22,6 +22,7 @@ import { bankService } from '@/src/services/apiServices';
 import { getMarketplaceCompareKey, listMarketplaceOffers } from '@/src/utils/bankMarketplace';
 import { MAX_BANK_COMPARE } from '@/src/constants/bankComparison';
 import { saveCompareSelection } from '@/src/utils/marketplaceCompareStorage';
+import { openAssessmentOrEligibilityFirst } from '@/src/utils/eligibilityGate';
 
 type Offer = {
   id?: string | number;
@@ -46,12 +47,16 @@ const FILTER_FIELDS: FilterField[] = [
   { key: 'bankType', label: 'Bank Type', type: 'text', placeholder: 'public / private' },
 ];
 
+const ALL_CATEGORY = 'all';
+
 const LOAN_CATEGORIES = [
+  { key: ALL_CATEGORY, label: 'All' },
   { key: 'personal_loan', label: 'Personal' },
   { key: 'home_loan', label: 'Home' },
   { key: 'business_loan', label: 'Business' },
   { key: 'auto_loan', label: 'Auto' },
   { key: 'education_loan', label: 'Education' },
+  { key: 'credit_card', label: 'Credit Card' },
 ];
 
 function offerKey(item: Offer, index: number) {
@@ -66,14 +71,15 @@ export default function MarketplaceScreen() {
   const [loading, setLoading] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState<Record<string, string>>({});
-  const [loanCategory, setLoanCategory] = useState('personal_loan');
+  const [loanCategory, setLoanCategory] = useState(ALL_CATEGORY);
 
   const loadOffers = useCallback(async () => {
     setLoading(true);
     try {
       const res = await bankService.getActiveBanks();
       const banks = res?.data || res || [];
-      setOffers(listMarketplaceOffers(banks, loanCategory));
+      const categoryFilter = loanCategory === ALL_CATEGORY ? null : loanCategory;
+      setOffers(listMarketplaceOffers(banks, categoryFilter));
     } catch {
       setOffers([]);
     }
@@ -85,6 +91,7 @@ export default function MarketplaceScreen() {
   }, [loadOffers]);
 
   const filtered = useMemo(() => {
+    const bankTypeFilter = filters.bankType?.trim().toLowerCase();
     let list = offers.filter((o) => {
       const matchSearch =
         !search ||
@@ -94,7 +101,10 @@ export default function MarketplaceScreen() {
       const maxRate = Number(filters.minRate);
       const amountOk = !amount || o.maxAmount == null || Number(String(o.maxAmount).replace(/\D/g, '')) >= amount;
       const rateOk = !maxRate || o.interestRate == null || o.interestRate <= maxRate;
-      return matchSearch && amountOk && rateOk;
+      const bankTypeOk =
+        !bankTypeFilter ||
+        String((o as Offer & { type?: string }).type || '').toLowerCase().includes(bankTypeFilter);
+      return matchSearch && amountOk && rateOk && bankTypeOk;
     });
 
     return [...list].sort((a, b) => {
@@ -162,7 +172,14 @@ export default function MarketplaceScreen() {
           <TouchableOpacity
             key={c.key}
             style={[styles.categoryChip, loanCategory === c.key && styles.categoryChipActive]}
-            onPress={() => setLoanCategory(c.key)}
+            onPress={() => {
+              if (c.key === 'credit_card') {
+                router.push('/(customer)/credit-cards');
+                return;
+              }
+              setLoanCategory(c.key);
+              setCompare([]);
+            }}
           >
             <Text style={[styles.categoryText, loanCategory === c.key && styles.categoryTextActive]}>{c.label}</Text>
           </TouchableOpacity>
@@ -198,9 +215,8 @@ export default function MarketplaceScreen() {
               offer={item}
               selected={selected}
               onApply={() =>
-                router.push({
-                  pathname: '/(customer)/assessment',
-                  params: { loanType: item.loanType || loanCategory },
+                void openAssessmentOrEligibilityFirst({
+                  loanType: item.loanType || (loanCategory === ALL_CATEGORY ? undefined : loanCategory),
                 })
               }
               onToggleCompare={() => toggleCompare(compareId)}
@@ -209,7 +225,11 @@ export default function MarketplaceScreen() {
         }}
         ListEmptyComponent={
           !loading ? (
-            <Text style={styles.empty}>No bank offers match your filters. Try another loan type.</Text>
+            <Text style={styles.empty}>
+              {loanCategory === ALL_CATEGORY
+                ? 'No bank offers match your filters.'
+                : 'No bank offers match your filters. Try another loan type.'}
+            </Text>
           ) : null
         }
       />

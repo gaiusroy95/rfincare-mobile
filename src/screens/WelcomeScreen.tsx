@@ -61,7 +61,7 @@ export default function WelcomeScreen() {
           role: 'customer',
         });
         await setTokens(res.data?.accessToken, res.data?.refreshToken);
-        router.replace('/(customer)/assessment');
+        router.replace('/(customer)/eligibility');
       } catch (e: unknown) {
         Alert.alert(
           'Error',

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import SectionHeader from '@/src/components/home/SectionHeader';
 import { colors } from '@/src/theme';
+import { openAssessmentOrEligibilityFirst } from '@/src/utils/eligibilityGate';
 
 const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   Wallet: 'wallet',
@@ -11,7 +12,19 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   Briefcase: 'briefcase',
   Car: 'car',
   GraduationCap: 'school',
+  CreditCard: 'card',
+  Landmark: 'business',
+  Heart: 'heart',
+  Shield: 'shield-checkmark',
+  PiggyBank: 'wallet',
+  TrendingUp: 'trending-up',
 };
+
+const CREDIT_CARD_SLUGS = new Set(['credit_card', 'creditcard']);
+
+function isCreditCard(loan: Product) {
+  return CREDIT_CARD_SLUGS.has(String(loan.slug || '')) || String(loan.apiKey || '') === 'credit_card';
+}
 
 const COLOR_MAP: Record<string, string> = {
   'var(--color-primary)': colors.primary,
@@ -22,6 +35,7 @@ const COLOR_MAP: Record<string, string> = {
 
 type Product = {
   slug?: string;
+  apiKey?: string;
   name?: string;
   label?: string;
   description?: string;
@@ -45,10 +59,11 @@ export default function HomeLoanProductsSection({ products, loading }: Props) {
       />
       {loading ? <Text style={styles.loading}>Loading loan products…</Text> : null}
       <View style={styles.grid}>
-        {products.slice(0, 4).map((loan) => {
+        {products.map((loan) => {
           const icon = ICON_MAP[loan.icon || ''] || 'cash';
           const accent = COLOR_MAP[loan.color || ''] || colors.primary;
           const title = loan.label || loan.name || 'Loan';
+          const creditCard = isCreditCard(loan);
           return (
             <View key={loan.slug} style={styles.card}>
               <View style={styles.header}>
@@ -75,15 +90,23 @@ export default function HomeLoanProductsSection({ products, loading }: Props) {
               <View style={styles.actions}>
                 <TouchableOpacity
                   style={[styles.btn, { backgroundColor: accent }]}
-                  onPress={() => loan.slug && router.push(`/(customer)/product/${loan.slug}` as never)}
+                  onPress={() =>
+                    creditCard
+                      ? router.push('/(customer)/credit-cards')
+                      : loan.slug && router.push(`/(customer)/product/${loan.slug}` as never)
+                  }
                 >
                   <Text style={styles.btnTextPrimary}>View</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.btnOutline}
-                  onPress={() => router.push('/(customer)/assessment')}
+                  onPress={() =>
+                    creditCard
+                      ? router.push('/(customer)/credit-cards')
+                      : void openAssessmentOrEligibilityFirst({ loanType: loan.slug })
+                  }
                 >
-                  <Text style={styles.btnTextOutline}>Apply</Text>
+                  <Text style={styles.btnTextOutline}>{creditCard ? 'View cards' : 'Apply'}</Text>
                 </TouchableOpacity>
               </View>
             </View>

@@ -17,12 +17,16 @@ import { LoanProductsProvider } from '@/src/contexts/LoanProductsContext';
 import { SiteContactProvider } from '@/src/contexts/SiteContactContext';
 import { MarketingProvider } from '@/src/contexts/MarketingContext';
 import LaunchSplash from '@/src/components/LaunchSplash';
+import AppInstallConsentScreen from '@/src/screens/AppInstallConsentScreen';
+import { hasValidAppConsent } from '@/src/utils/appConsent';
 import '@/src/i18n';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [showApp, setShowApp] = useState(false);
+  const [consentReady, setConsentReady] = useState(false);
+  const [hasConsent, setHasConsent] = useState(false);
   const [loaded, error] = useFonts({
     DMSans_400Regular,
     DMSans_500Medium,
@@ -40,11 +44,24 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (loaded) setShowApp(true);
+    if (loaded) {
+      setShowApp(true);
+      hasValidAppConsent()
+        .then(setHasConsent)
+        .finally(() => setConsentReady(true));
+    }
   }, [loaded]);
 
-  if (!showApp) {
+  if (!showApp || !consentReady) {
     return <LaunchSplash />;
+  }
+
+  if (!hasConsent) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <AppInstallConsentScreen onAccepted={() => setHasConsent(true)} />
+      </GestureHandlerRootView>
+    );
   }
 
   return (

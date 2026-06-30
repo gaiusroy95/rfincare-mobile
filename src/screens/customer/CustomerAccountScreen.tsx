@@ -6,6 +6,7 @@ import Screen from '@/src/components/Screen';
 import CustomerHeaderActions from '@/src/components/customer/CustomerHeaderActions';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { colors } from '@/src/theme';
+import { POLICY_PAGES, legalScreenHref } from '@/src/constants/legalPages';
 
 type LinkItem = {
   title: string;
@@ -15,16 +16,22 @@ type LinkItem = {
 };
 
 const ACCOUNT_LINKS: LinkItem[] = [
-  { title: 'Edit Profile', icon: 'person-outline', href: '/(customer)/profile', requiresAuth: true },
+  { title: 'Edit Profile', icon: 'person-outline', href: '/(customer)/edit-profile', requiresAuth: true },
   { title: 'Documents', icon: 'folder-open-outline', href: '/(customer)/documents', requiresAuth: true },
   { title: 'Password Management', icon: 'key-outline', href: '/(customer)/password', requiresAuth: true },
 ];
 
 const SUPPORT_LINKS: LinkItem[] = [
   { title: 'Share Your Story', icon: 'megaphone-outline', href: '/(customer)/share-story' },
-  { title: 'Terms of Service', icon: 'document-text-outline', href: '/(customer)/legal?slug=terms-of-service' },
-  { title: 'Privacy Policy', icon: 'lock-closed-outline', href: '/(customer)/legal?slug=privacy-policy' },
+  { title: 'Terms of Service', icon: 'document-text-outline', href: legalScreenHref('terms-of-service') },
+  { title: 'Privacy Policy', icon: 'lock-closed-outline', href: legalScreenHref('privacy-policy') },
 ];
+
+const POLICY_LINKS: LinkItem[] = POLICY_PAGES.map((page) => ({
+  title: page.title,
+  icon: 'document-outline' as keyof typeof Ionicons.glyphMap,
+  href: legalScreenHref(page.slug),
+}));
 
 function LinkSection({ title, items, isLoggedIn }: { title: string; items: LinkItem[]; isLoggedIn: boolean }) {
   const visible = items.filter((item) => !item.requiresAuth || isLoggedIn);
@@ -50,7 +57,7 @@ function LinkSection({ title, items, isLoggedIn }: { title: string; items: LinkI
 
 export default function CustomerAccountScreen() {
   const { user, userProfile, signOut } = useAuth();
-  const displayName = userProfile?.fullName || user?.firstName || user?.email || 'Guest';
+  const displayName = String(userProfile?.fullName || user?.email || 'Guest');
 
   const handleSignOut = () => {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
@@ -107,6 +114,7 @@ export default function CustomerAccountScreen() {
 
       <LinkSection title="Account" items={ACCOUNT_LINKS} isLoggedIn={!!user} />
       <LinkSection title="Support & Legal" items={SUPPORT_LINKS} isLoggedIn={!!user} />
+      <LinkSection title="Policies & Disclosures" items={POLICY_LINKS} isLoggedIn={!!user} />
 
       {user ? (
         <TouchableOpacity style={styles.signOut} onPress={handleSignOut}>

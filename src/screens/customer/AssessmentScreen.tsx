@@ -35,6 +35,7 @@ import {
   getStoredCredentials,
   persistCredentials,
 } from '@/src/utils/assessmentCredentials';
+import { hasCompletedEligibilityCheck } from '@/src/utils/eligibilityGate';
 // @ts-expect-error JS module
 import { homepageService } from '@/src/services/homepageService';
 import {
@@ -70,6 +71,7 @@ export default function AssessmentScreen({ assistedByAgent = false }: Props) {
   const [eligibilityResult, setEligibilityResult] = useState<EligibilityResult | null>(null);
   const [agentMeta, setAgentMeta] = useState<Record<string, unknown> | null>(null);
   const [submitError, setSubmitError] = useState('');
+  const [gateReady, setGateReady] = useState(Boolean(assistedByAgent || params.resume === '1'));
 
   const { isSaving, lastSaved, saveNow } = useAutoSave({
     formData: form,
@@ -132,11 +134,35 @@ export default function AssessmentScreen({ assistedByAgent = false }: Props) {
   }, [params.resume, params.loanType, isAuthenticated, user]);
 
   useEffect(() => {
+    if (assistedByAgent || params.resume === '1') {
+      setGateReady(true);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const ok = await hasCompletedEligibilityCheck();
+      if (cancelled) return;
+      if (!ok) {
+        router.replace({
+          pathname: '/(customer)/eligibility',
+          params: params.loanType ? { loanType: String(params.loanType) } : undefined,
+        });
+        return;
+      }
+      setGateReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [assistedByAgent, params.resume, params.loanType]);
+
+  useEffect(() => {
+    if (!gateReady) return;
     hydrate();
     if (assistedByAgent) {
       agentApplicationService.getProfile().then(setAgentMeta).catch(() => {});
     }
-  }, [hydrate, assistedByAgent]);
+  }, [gateReady, hydrate, assistedByAgent]);
 
   const fetchEligibility = useCallback(async (formData: AssessmentFormData) => {
     try {
@@ -332,6 +358,7 @@ export default function AssessmentScreen({ assistedByAgent = false }: Props) {
       return (
         <ApplicationConfirmation
           applicationId={appId}
+          loanPurpose={form.loanPurpose}
           eligibilityResult={eligibilityResult}
           onDone={() => router.replace('/(customer)/(tabs)/dashboard')}
         />
@@ -358,6 +385,12 @@ export default function AssessmentScreen({ assistedByAgent = false }: Props) {
     }
   };
 
+  if (!gateReady) {
+    return (
+      <Screen title="Loan Application" loading headerRight={<CustomerHeaderActions />} />
+    );
+  }
+
   if (submitted) {
     return (
       <Screen title="Application Submitted" headerRight={<CustomerHeaderActions />}>
@@ -367,7 +400,19 @@ export default function AssessmentScreen({ assistedByAgent = false }: Props) {
   }
 
   return (
-    <Screen title={assistedByAgent ? `Agent Application — ${ASSESSMENT_STEPS[step].label}` : `Apply — ${ASSESSMENT_STEPS[step].label}`} headerRight={<CustomerHeaderActions />}>
+    <Screen
+      showBack
+      onBack={() => {
+        if (step > 0) {
+          setErrors({});
+          setStep((s) => s - 1);
+        } else {
+          router.back();
+        }
+      }}
+      title={assistedByAgent ? `Agent Application — ${ASSESSMENT_STEPS[step].label}` : `Apply — ${ASSESSMENT_STEPS[step].label}`}
+      headerRight={<CustomerHeaderActions />}
+    >
       <LoadingOverlay visible={preparing} message="Preparing your application…" />
       {assistedByAgent && agentMeta && (
         <AgentAssistedBanner

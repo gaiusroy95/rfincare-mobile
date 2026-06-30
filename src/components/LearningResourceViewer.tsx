@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Platform, TouchableOpacity } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme';
+import LearningVideoPlayer from '@/src/components/LearningVideoPlayer';
 import {
   readLearningFileBase64,
   type LearningResource,
@@ -26,22 +28,6 @@ const webViewFileProps = {
   mixedContentMode: 'always' as const,
 };
 
-function videoHtml(uri: string): string {
-  const safe = uri.replace(/"/g, '&quot;');
-  return `<!DOCTYPE html>
-<html><head>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { background: #000; height: 100%; width: 100%; }
-  body { display: flex; align-items: center; justify-content: center; }
-  video { width: 100%; max-height: 100vh; background: #000; }
-</style>
-</head><body>
-  <video controls playsinline webkit-playsinline preload="metadata" src="${safe}"></video>
-</body></html>`;
-}
-
 function pdfHtml(base64: string): string {
   return `<!DOCTYPE html>
 <html><head>
@@ -59,6 +45,7 @@ function pdfHtml(base64: string): string {
 export default function LearningResourceViewer({ resource, media, loading, error }: Props) {
   const [pdfBase64, setPdfBase64] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +69,14 @@ export default function LearningResourceViewer({ resource, media, loading, error
       cancelled = true;
     };
   }, [media?.localUri, media?.isVideo, media?.isExternal]);
+
+  useEffect(() => {
+    if (media?.isVideo && !loading && !error) {
+      setVideoModalOpen(true);
+    } else {
+      setVideoModalOpen(false);
+    }
+  }, [media?.localUri, media?.isVideo, loading, error]);
 
   if (loading) {
     return (
@@ -111,26 +106,31 @@ export default function LearningResourceViewer({ resource, media, loading, error
   }
 
   if (media.isVideo) {
-    if (media.isExternal) {
-      return (
-        <View style={styles.player}>
-          <WebView source={{ uri: media.localUri }} style={styles.webview} {...webViewFileProps} />
-        </View>
-      );
-    }
-
-    const uri = media.localUri;
-    const useDirectUri = Platform.OS === 'android' && uri.startsWith('file://');
-
     return (
-      <View style={styles.player}>
-        <WebView
-          source={useDirectUri ? { uri } : { html: videoHtml(uri), baseUrl: Platform.OS === 'ios' ? uri : undefined }}
-          style={styles.webview}
-          allowingReadAccessToURL={Platform.OS === 'ios' ? uri : undefined}
-          {...webViewFileProps}
+      <>
+        <TouchableOpacity
+          style={styles.videoPreview}
+          activeOpacity={0.9}
+          onPress={() => setVideoModalOpen(true)}
+          accessibilityLabel={`Open ${resource.title} in wide view`}
+        >
+          <View style={styles.videoPreviewInner}>
+            <Ionicons name="videocam" size={40} color="#fff" />
+            <Text style={styles.videoPreviewTitle} numberOfLines={2}>{resource.title}</Text>
+            <Text style={styles.videoPreviewAction}>Tap to open wide view with audio controls</Text>
+          </View>
+          <View style={styles.expandBadge}>
+            <Ionicons name="expand" size={18} color="#fff" />
+          </View>
+        </TouchableOpacity>
+
+        <LearningVideoPlayer
+          title={resource.title}
+          media={media}
+          visible={videoModalOpen}
+          onClose={() => setVideoModalOpen(false)}
         />
-      </View>
+      </>
     );
   }
 
@@ -168,6 +168,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
+  },
+  videoPreview: {
+    height: 220,
+    backgroundColor: '#111827',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    position: 'relative',
+  },
+  videoPreviewInner: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    gap: 8,
+  },
+  videoPreviewTitle: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  videoPreviewAction: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  expandBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(236,72,153,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   player: {
     height: 220,
