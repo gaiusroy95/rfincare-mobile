@@ -12,10 +12,31 @@ export function resolveMediaUrl(url?: string | null): string | null {
 
 export function youtubeId(url?: string | null): string | null {
   if (!url) return null;
-  const match = String(url).match(
-    /(?:youtu\.be\/|v=|\/embed\/|\/shorts\/)([\w-]{11})/,
-  );
-  return match ? match[1] : null;
+  const value = String(url).trim();
+  if (!value) return null;
+
+  const patterns = [
+    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|shorts\/|live\/|v\/))([\w-]{11})/i,
+    /[?&]v=([\w-]{11})/i,
+    /vid:([\w-]{11})/i,
+    /\/vi\/([\w-]{11})(?:\/|$)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = value.match(pattern);
+    if (match) return match[1];
+  }
+
+  return null;
+}
+
+export function resolveVideoYoutubeUrl(video?: {
+  youtubeUrl?: string | null;
+  youtubeurl?: string | null;
+  youtube_url?: string | null;
+} | null): string | null {
+  if (!video) return null;
+  return video.youtubeUrl || video.youtubeurl || video.youtube_url || null;
 }
 
 export function youtubeThumbnail(url?: string | null): string | null {

@@ -152,7 +152,13 @@ export default function HomeScreen() {
 
             description: v.description ? String(v.description) : undefined,
 
-            youtubeUrl: v.youtubeUrl ? String(v.youtubeUrl) : undefined,
+            youtubeUrl: v.youtubeUrl
+              ? String(v.youtubeUrl)
+              : v.youtubeurl
+                ? String(v.youtubeurl)
+                : v.youtube_url
+                  ? String(v.youtube_url)
+                  : undefined,
 
             thumbnailUrl: v.thumbnailUrl ? String(v.thumbnailUrl) : undefined,
 

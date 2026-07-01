@@ -15,7 +15,7 @@ import YoutubePlayer from 'react-native-youtube-iframe';
 import { Ionicons } from '@expo/vector-icons';
 import SectionHeader from '@/src/components/home/SectionHeader';
 import { colors } from '@/src/theme';
-import { resolveMediaUrl, youtubeThumbnail, youtubeId } from '@/src/utils/mediaUrls';
+import { resolveMediaUrl, resolveVideoYoutubeUrl, youtubeThumbnail, youtubeId } from '@/src/utils/mediaUrls';
 
 export type HomeVideo = {
   id: string;
@@ -45,8 +45,9 @@ export default function HomeVideosSection({ videos, loading }: Props) {
   }
   if (!videos.length) return null;
 
-  const videoId = selected ? youtubeId(selected.youtubeUrl) : null;
-  const directUrl = selected && !videoId ? resolveMediaUrl(selected.youtubeUrl) : null;
+  const selectedUrl = selected ? resolveVideoYoutubeUrl(selected) : null;
+  const videoId = selectedUrl ? youtubeId(selectedUrl) : null;
+  const directUrl = selected && !videoId ? resolveMediaUrl(selectedUrl) : null;
   const playerWidth = Math.min(width, 720);
   const playerHeight = Math.round((playerWidth * 9) / 16);
 
@@ -68,7 +69,8 @@ video{width:100%;height:100%;object-fit:contain}</style>
       />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         {videos.map((video) => {
-          const thumb = resolveMediaUrl(video.thumbnailUrl) || youtubeThumbnail(video.youtubeUrl);
+          const videoUrl = resolveVideoYoutubeUrl(video);
+          const thumb = resolveMediaUrl(video.thumbnailUrl) || youtubeThumbnail(videoUrl);
           return (
             <TouchableOpacity
               key={video.id}

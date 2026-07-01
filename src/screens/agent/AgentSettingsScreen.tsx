@@ -81,11 +81,8 @@ export default function AgentSettingsScreen() {
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
-
   const [resetOtp, setResetOtp] = useState('');
-  const [resetPassword, setResetPassword] = useState('');
-  const [resetConfirm, setResetConfirm] = useState('');
-  const [resetOtpSent, setResetOtpSent] = useState(false);
+  const [passwordOtpStep, setPasswordOtpStep] = useState(false);
 
   const [deactivateOtp, setDeactivateOtp] = useState('');
   const [deactivateConfirm, setDeactivateConfirm] = useState('');
@@ -162,39 +159,28 @@ export default function AgentSettingsScreen() {
     ]);
   };
 
-  const handleChangePassword = async () => {
-    setMessage('');
-    setError('');
+  const validatePasswordFields = () => {
+    if (!currentPass) return 'Enter your current password';
     const validation = validatePassword(newPass);
-    if (validation) {
-      setError(validation);
-      return;
-    }
-    if (newPass !== confirmPass) {
-      setError('New passwords do not match');
-      return;
-    }
-    setBusy('password');
-    try {
-      const { error: changeError } = await authService.changePassword(currentPass, newPass);
-      if (changeError) throw new Error(changeError.message);
-      setMessage('Password changed successfully');
-      setCurrentPass('');
-      setNewPass('');
-      setConfirmPass('');
-    } catch (e) {
-      setError(apiError(e));
-    }
-    setBusy('');
+    if (validation) return validation;
+    if (newPass !== confirmPass) return 'New passwords do not match';
+    if (currentPass === newPass) return 'New password must be different from current password';
+    return null;
   };
 
-  const handleRequestResetOtp = async () => {
-    setBusy('reset-otp');
+  const handleStartPasswordChange = async () => {
     setMessage('');
     setError('');
+    const fieldError = validatePasswordFields();
+    if (fieldError) {
+      setError(fieldError);
+      return;
+    }
+    setBusy('reset-otp');
     try {
       await agentProfileService.requestPasswordResetOtp();
-      setResetOtpSent(true);
+      setPasswordOtpStep(true);
+      setResetOtp('');
       setMessage('OTP sent to your registered email');
     } catch (e) {
       setError(apiError(e));
@@ -202,16 +188,12 @@ export default function AgentSettingsScreen() {
     setBusy('');
   };
 
-  const handleResetPassword = async () => {
+  const handleConfirmPasswordChange = async () => {
     setMessage('');
     setError('');
-    const validation = validatePassword(resetPassword);
-    if (validation) {
-      setError(validation);
-      return;
-    }
-    if (resetPassword !== resetConfirm) {
-      setError('Passwords do not match');
+    const fieldError = validatePasswordFields();
+    if (fieldError) {
+      setError(fieldError);
       return;
     }
     if (resetOtp.length !== OTP_LEN) {
@@ -220,8 +202,8 @@ export default function AgentSettingsScreen() {
     }
     setBusy('reset');
     try {
-      await agentProfileService.confirmPasswordReset(resetOtp, resetPassword);
-      Alert.alert('Password reset', 'Password updated. Please sign in again.', [
+      await agentProfileService.confirmPasswordReset(resetOtp, newPass, currentPass);
+      Alert.alert('Password changed', 'Password updated. Please sign in again.', [
         {
           text: 'OK',
           onPress: async () => {
@@ -453,34 +435,27 @@ export default function AgentSettingsScreen() {
 
       <SettingsSection
         title="Change Password"
-        description="Update your password while signed in."
+        description="Enter current and new password, then verify with OTP sent to your registered email."
         icon="lock-closed"
       >
         <Input label="Current Password" value={currentPass} onChangeText={setCurrentPass} secureTextEntry />
         <Input label="New Password" value={newPass} onChangeText={setNewPass} secureTextEntry />
         <Input label="Confirm New Password" value={confirmPass} onChangeText={setConfirmPass} secureTextEntry />
-        <Button title="Change Password" variant="agent" onPress={handleChangePassword} loading={busy === 'password'} />
-      </SettingsSection>
-
-      <SettingsSection
-        title="Reset Password (OTP)"
-        description="Forgot your password? Request an OTP to your registered email."
-        icon="key"
-        iconBg="#FEF3C7"
-        iconColor="#B45309"
-      >
-        <Button title="Request Reset OTP" variant="outline" onPress={handleRequestResetOtp} loading={busy === 'reset-otp'} />
-        {resetOtpSent ? <OtpSentBanner text="OTP sent to your registered email" /> : null}
-        <Input
-          label="OTP"
-          value={resetOtp}
-          onChangeText={(v) => setResetOtp(v.replace(/\D/g, '').slice(0, OTP_LEN))}
-          keyboardType="number-pad"
-          maxLength={OTP_LEN}
-        />
-        <Input label="New Password" value={resetPassword} onChangeText={setResetPassword} secureTextEntry />
-        <Input label="Confirm New Password" value={resetConfirm} onChangeText={setResetConfirm} secureTextEntry />
-        <Button title="Confirm Reset" variant="agent" onPress={handleResetPassword} loading={busy === 'reset'} />
+        {passwordOtpStep ? (
+          <>
+            <OtpSentBanner text="OTP sent to your registered email" />
+            <Input
+              label="OTP"
+              value={resetOtp}
+              onChangeText={(v) => setResetOtp(v.replace(/\D/g, '').slice(0, OTP_LEN))}
+              keyboardType="number-pad"
+              maxLength={OTP_LEN}
+            />
+            <Button title="Verify OTP & change password" variant="agent" onPress={handleConfirmPasswordChange} loading={busy === 'reset'} />
+          </>
+        ) : (
+          <Button title="Change password" variant="agent" onPress={handleStartPasswordChange} loading={busy === 'reset-otp'} />
+        )}
       </SettingsSection>
 
       <SettingsSection

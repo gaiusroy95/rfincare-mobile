@@ -163,16 +163,46 @@ export const authService = {
     }
   },
 
-  // Password management
-  async changePassword(currentPassword, newPassword) {
+  // Password management — OTP only (direct change disabled on backend)
+  async changePassword() {
+    return {
+      error: {
+        message:
+          'Direct password change is disabled. Use password reset with OTP in settings.',
+      },
+    };
+  },
+
+  /** Logged-in customer: request OTP for password reset. */
+  async requestAuthenticatedPasswordResetOtp(channel = 'email') {
     try {
-      await apiClient.post('/auth/change-password', { currentPassword, newPassword });
-      return { error: null };
+      const res = await apiClient.post('/auth/password-reset/request-otp', { channel });
+      return { data: res.data, error: null };
     } catch (error) {
-      return { 
-        error: { 
-          message: error.response?.data?.error || 'Failed to change password' 
-        } 
+      return {
+        data: null,
+        error: {
+          message: error.response?.data?.error || error.message || 'Could not send OTP',
+        },
+      };
+    }
+  },
+
+  /** Logged-in customer: confirm OTP and set new password. */
+  async confirmAuthenticatedPasswordReset(otp, newPassword, currentPassword) {
+    try {
+      const res = await apiClient.post('/auth/password-reset/confirm', {
+        otp,
+        newPassword,
+        currentPassword,
+      });
+      return { data: res.data, error: null };
+    } catch (error) {
+      return {
+        data: null,
+        error: {
+          message: error.response?.data?.error || error.message || 'Password reset failed',
+        },
       };
     }
   },
