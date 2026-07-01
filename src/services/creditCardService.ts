@@ -1,13 +1,22 @@
 import { apiClient } from '../api/apiClient';
+import { buildCreditCardQueryParams } from '../utils/creditCardFilters';
+import type { CreditCardFilters } from '../constants/creditCardMarketplace';
 
 export const creditCardService = {
-  async listActive() {
-    const res = await apiClient.get('/credit-cards');
+  async listActive(filters: Partial<CreditCardFilters> = {}) {
+    const params = buildCreditCardQueryParams(filters);
+    const res = await apiClient.get('/credit-cards', { params });
     return res.data;
   },
 
-  async listAll() {
-    const res = await apiClient.get('/credit-cards', { params: { includeInactive: 'true' } });
+  async listAll(filters: Partial<CreditCardFilters> = {}) {
+    const params = { includeInactive: 'true', ...buildCreditCardQueryParams(filters) };
+    const res = await apiClient.get('/credit-cards', { params });
+    return res.data;
+  },
+
+  async getTaxonomy() {
+    const res = await apiClient.get('/credit-cards/taxonomy');
     return res.data;
   },
 
@@ -26,6 +35,7 @@ export type CreditCard = {
   description?: string | null;
   logoUrl?: string | null;
   cardNetwork?: string | null;
+  categories?: string[];
   annualFee?: number | null;
   joiningFee?: number | null;
   interestRate?: number | null;
@@ -34,6 +44,20 @@ export type CreditCard = {
   features?: string[];
   advantages?: string[];
   benefits?: string[];
+  rewardPoints?: string | null;
+  hasRewardPoints?: boolean;
+  loungeAccess?: boolean;
+  loungeAccessDetails?: string | null;
+  fuelSurchargeWaiver?: boolean;
+  movieBenefits?: boolean;
+  movieBenefitsDetails?: string | null;
+  diningBenefits?: boolean;
+  diningBenefitsDetails?: string | null;
+  insuranceCover?: boolean;
+  insuranceCoverDetails?: string | null;
+  forexCharges?: string | null;
+  emiConversion?: boolean;
+  emiConversionDetails?: string | null;
   applyUrl?: string | null;
   displayPriority?: number;
   status?: string;

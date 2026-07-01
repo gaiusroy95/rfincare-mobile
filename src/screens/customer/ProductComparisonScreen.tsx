@@ -9,6 +9,7 @@ import CompareTable, { type CompareColumn, type CompareRow } from '@/src/compone
 import { useLoanProducts } from '@/src/contexts/LoanProductsContext';
 import { openAssessmentOrEligibilityFirst } from '@/src/utils/eligibilityGate';
 import { PRODUCT_COMPARISON_ROWS } from '@/src/constants/bankProductComparisonFields';
+import { colors } from '@/src/theme';
 
 const MAX_PRODUCT_COMPARE = 8;
 
