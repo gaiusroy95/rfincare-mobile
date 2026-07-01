@@ -453,6 +453,46 @@ export default function CustomerDashboardScreen() {
 
             </TouchableOpacity>
 
+            <TouchableOpacity
+
+              style={styles.quickCard}
+
+              activeOpacity={0.85}
+
+              onPress={() => router.push('/(customer)/insurance')}
+
+            >
+
+              <View style={[styles.quickIcon, { backgroundColor: '#DBEAFE' }]}>
+
+                <Ionicons name="shield-checkmark-outline" size={22} color="#1D4ED8" />
+
+              </View>
+
+              <Text style={styles.quickLabel}>Insurance</Text>
+
+            </TouchableOpacity>
+
+            <TouchableOpacity
+
+              style={styles.quickCard}
+
+              activeOpacity={0.85}
+
+              onPress={() => router.push('/(customer)/mutual-funds')}
+
+            >
+
+              <View style={[styles.quickIcon, { backgroundColor: '#D1FAE5' }]}>
+
+                <Ionicons name="trending-up-outline" size={22} color="#047857" />
+
+              </View>
+
+              <Text style={styles.quickLabel}>Mutual Funds</Text>
+
+            </TouchableOpacity>
+
           </View>
 
           {creditCards.length > 0 ? (

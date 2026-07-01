@@ -188,6 +188,22 @@ export default function AgentDashboardScreen() {
             ))}
           </View>
 
+          <Text style={styles.section}>Insurance</Text>
+          <Button
+            title="Browse Insurance Marketplace"
+            variant="outline"
+            onPress={() => router.push('/(agent)/insurance')}
+            style={{ marginTop: 4 }}
+          />
+
+          <Text style={styles.section}>Mutual Funds</Text>
+          <Button
+            title="Browse Mutual Fund Marketplace"
+            variant="outline"
+            onPress={() => router.push('/(agent)/mutual-funds')}
+            style={{ marginTop: 4 }}
+          />
+
           <CommissionReportPanel />
 
           <Text style={styles.section}>Recent Activity</Text>
