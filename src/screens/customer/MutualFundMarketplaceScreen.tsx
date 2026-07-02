@@ -11,7 +11,6 @@ import BankLogo from '@/src/components/BankLogo';
 import { colors } from '@/src/theme';
 import { mutualFundService, type MutualFund } from '@/src/services/mutualFundService';
 import {
-  COMPARE_TABLE_ROWS,
   DEFAULT_MUTUAL_FUND_FILTERS,
   EXPENSE_RATIO_OPTIONS,
   MUTUAL_FUND_CATEGORIES,
@@ -25,11 +24,24 @@ import {
 import {
   countActiveFilters,
   formatAum,
-  formatCompareCell,
   formatPercent,
   formatRating,
   resetMutualFundFilters,
 } from '@/src/utils/mutualFundFilters';
+import {
+  buildMutualFundCompareColumns,
+  buildMutualFundSpecRows,
+} from '@/src/utils/marketplaceCompareHelpers';
+import MarketplaceCompareView from '@/src/components/marketplace/MarketplaceCompareView';
+import MarketplaceProductGrid from '@/src/components/marketplace/MarketplaceProductGrid';
+import MarketplaceLeadWizard from '@/src/components/marketplace/MarketplaceLeadWizard';
+import MutualFundCalculatorCard from '@/src/components/mutual-funds/MutualFundCalculatorCard';
+import { MUTUAL_FUND_PRODUCT_GRID, type MarketplaceProductItem } from '@/src/constants/marketplaceLeadFlow';
+import {
+  loadMarketplaceProfile,
+  saveMarketplaceProfile,
+  type MarketplaceProfile,
+} from '@/src/utils/marketplaceLeadSession';
 // @ts-expect-error JS module
 import { resolveBankLogoUrl } from '@/src/utils/bankBranding';
 
@@ -53,14 +65,31 @@ async function openUrl(url?: string | null) {
 }
 
 export default function MutualFundMarketplaceScreen() {
+  const [profile, setProfile] = useState<MarketplaceProfile | null>(null);
+  const [showCatalog, setShowCatalog] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [pendingProduct, setPendingProduct] = useState<MarketplaceProductItem | null>(null);
   const [funds, setFunds] = useState<MutualFund[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [showCompare, setShowCompare] = useState(false);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [filters, setFilters] = useState<MutualFundFilters>({ ...DEFAULT_MUTUAL_FUND_FILTERS });
 
+  useEffect(() => {
+    loadMarketplaceProfile('mutual_funds').then((saved) => {
+      if (saved) {
+        setProfile(saved);
+        setShowCatalog(true);
+        if (saved.productCategory && saved.productCategory !== 'all') {
+          setFilters((prev) => ({ ...prev, category: saved.productCategory! }));
+        }
+      }
+    });
+  }, []);
+
   const loadFunds = useCallback(async () => {
+    if (!showCatalog) return;
     setLoading(true);
     try {
       const list = await mutualFundService.listActive(filters);
@@ -69,9 +98,34 @@ export default function MutualFundMarketplaceScreen() {
       setFunds([]);
     }
     setLoading(false);
-  }, [filters]);
+  }, [filters, showCatalog]);
 
   useEffect(() => { loadFunds(); }, [loadFunds]);
+
+  const handleProductSelect = (item: MarketplaceProductItem) => {
+    if (profile?.verifiedAt) {
+      setFilters((prev) => ({ ...prev, category: item.slug }));
+      setShowCatalog(true);
+      return;
+    }
+    setPendingProduct(item);
+    setWizardOpen(true);
+  };
+
+  const handleWizardComplete = async (completed: MarketplaceProfile) => {
+    const saved = await saveMarketplaceProfile('mutual_funds', {
+      ...completed,
+      productCategory: pendingProduct?.slug || completed.productCategory,
+      productLabel: pendingProduct?.label || completed.productLabel,
+    });
+    setProfile(saved);
+    if (saved.productCategory && saved.productCategory !== 'all') {
+      setFilters((prev) => ({ ...prev, category: saved.productCategory! }));
+    }
+    setWizardOpen(false);
+    setPendingProduct(null);
+    setShowCatalog(true);
+  };
 
   const compareFunds = useMemo(
     () => funds.filter((f) => selected.includes(f.id)),
@@ -135,11 +189,47 @@ export default function MutualFundMarketplaceScreen() {
   );
 
   return (
-    <Screen title="Mutual Funds" showBack loading={loading}>
+    <Screen title="Mutual Funds" showBack loading={loading && showCatalog}>
+      {!showCatalog ? (
+        <ScrollView>
+          <View style={styles.hero}>
+            <Text style={styles.heroTitle}>Grow wealth with the Best Mutual Funds</Text>
+            <Text style={styles.heroSub}>500+ funds · Quick, easy & hassle free</Text>
+          </View>
+          <MutualFundCalculatorCard />
+          <MarketplaceProductGrid
+            items={MUTUAL_FUND_PRODUCT_GRID}
+            onSelect={handleProductSelect}
+            title="Choose your investment category"
+            subtitle="Select a fund type to get personalised recommendations"
+          />
+          <Button
+            title="View all funds"
+            variant="outline"
+            onPress={() => {
+              if (profile?.verifiedAt) setShowCatalog(true);
+              else {
+                setPendingProduct({ slug: 'all', label: 'All Mutual Funds', icon: 'stats-chart' });
+                setWizardOpen(true);
+              }
+            }}
+            style={{ marginTop: 8 }}
+          />
+        </ScrollView>
+      ) : (
+        <>
       <View style={styles.hero}>
         <Text style={styles.heroTitle}>Mutual Fund Marketplace</Text>
-        <Text style={styles.heroSub}>SIP · Lumpsum · ELSS · Equity · Debt — compare & invest</Text>
+        <Text style={styles.heroSub}>
+          {profile?.productLabel ? `Funds for ${profile.productLabel}` : 'SIP · Lumpsum · ELSS · Equity · Debt — compare & invest'}
+        </Text>
+        {profile?.phone ? <Text style={styles.verifiedBadge}>✓ Verified {profile.phone}</Text> : null}
       </View>
+      <TouchableOpacity onPress={() => setShowCatalog(false)} style={styles.browseLink}>
+        <Text style={styles.browseLinkText}>‹ Browse categories</Text>
+      </TouchableOpacity>
+
+      <MutualFundCalculatorCard />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
         <TouchableOpacity style={[styles.categoryChip, filters.category === 'all' && styles.categoryChipActive]} onPress={() => updateFilter('category', 'all')}>
@@ -167,21 +257,12 @@ export default function MutualFundMarketplaceScreen() {
       ) : null}
 
       {showCompare && compareFunds.length >= 2 ? (
-        <Card style={styles.compareCard}>
-          <Text style={styles.compareTitle}>Comparison</Text>
-          <ScrollView horizontal>
-            <View>
-              {COMPARE_TABLE_ROWS.map((row) => (
-                <View key={row.key} style={styles.compareRow}>
-                  <Text style={styles.compareLabel}>{row.label}</Text>
-                  {compareFunds.map((f) => (
-                    <Text key={f.id} style={styles.compareCell}>{formatCompareCell(f, row)}</Text>
-                  ))}
-                </View>
-              ))}
-            </View>
-          </ScrollView>
-        </Card>
+        <MarketplaceCompareView
+          title="Mutual fund comparison"
+          columns={buildMutualFundCompareColumns(compareFunds as unknown as Record<string, unknown>[])}
+          specRows={buildMutualFundSpecRows(compareFunds as unknown as Record<string, unknown>[])}
+          onRemove={(id) => setSelected((prev) => prev.filter((x) => x !== id))}
+        />
       ) : null}
 
       {filterModal}
@@ -232,6 +313,17 @@ export default function MutualFundMarketplaceScreen() {
           );
         }}
       />
+        </>
+      )}
+
+      <MarketplaceLeadWizard
+        visible={wizardOpen}
+        onClose={() => { setWizardOpen(false); setPendingProduct(null); }}
+        onComplete={handleWizardComplete}
+        marketplaceType="mutual_funds"
+        productLabel={pendingProduct?.label}
+        productCategory={pendingProduct?.slug}
+      />
     </Screen>
   );
 }
@@ -240,6 +332,9 @@ const styles = StyleSheet.create({
   hero: { backgroundColor: colors.customer, borderRadius: 16, padding: 18, marginBottom: 12 },
   heroTitle: { fontSize: 18, fontWeight: '800', color: '#fff' },
   heroSub: { fontSize: 13, color: 'rgba(255,255,255,0.9)', marginTop: 4 },
+  verifiedBadge: { fontSize: 11, color: '#D1FAE5', marginTop: 6, fontWeight: '600' },
+  browseLink: { marginBottom: 8 },
+  browseLinkText: { fontSize: 13, fontWeight: '700', color: colors.customer },
   categoryScroll: { marginBottom: 12 },
   categoryChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.border, marginRight: 6, backgroundColor: colors.card },
   categoryChipActive: { backgroundColor: colors.customer, borderColor: colors.customer },

@@ -11,7 +11,6 @@ import BankLogo from '@/src/components/BankLogo';
 import { colors } from '@/src/theme';
 import { insuranceService, type InsuranceProduct } from '@/src/services/insuranceService';
 import {
-  COMPARE_TABLE_ROWS,
   DEFAULT_INSURANCE_FILTERS,
   INSURANCE_SEGMENTS,
   INSURANCE_SERVICES,
@@ -23,8 +22,12 @@ import {
   type InsuranceFilters,
 } from '@/src/constants/insuranceMarketplace';
 import {
+  buildInsuranceCompareColumns,
+  buildInsuranceSpecRows,
+} from '@/src/utils/marketplaceCompareHelpers';
+import MarketplaceCompareView from '@/src/components/marketplace/MarketplaceCompareView';
+import {
   countActiveFilters,
-  formatCompareCell,
   formatPremiumRange,
   formatSumInsuredRange,
   getServiceUrl,
@@ -32,6 +35,14 @@ import {
 } from '@/src/utils/insuranceFilters';
 // @ts-expect-error JS module
 import { resolveBankLogoUrl } from '@/src/utils/bankBranding';
+import MarketplaceProductGrid from '@/src/components/marketplace/MarketplaceProductGrid';
+import MarketplaceLeadWizard from '@/src/components/marketplace/MarketplaceLeadWizard';
+import { INSURANCE_PRODUCT_GRID, type MarketplaceProductItem } from '@/src/constants/marketplaceLeadFlow';
+import {
+  loadMarketplaceProfile,
+  saveMarketplaceProfile,
+  type MarketplaceProfile,
+} from '@/src/utils/marketplaceLeadSession';
 
 const MAX_COMPARE = 3;
 
@@ -53,14 +64,33 @@ async function openUrl(url?: string | null) {
 }
 
 export default function InsuranceMarketplaceScreen() {
+  const [profile, setProfile] = useState<MarketplaceProfile | null>(null);
+  const [showCatalog, setShowCatalog] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [pendingProduct, setPendingProduct] = useState<MarketplaceProductItem | null>(null);
   const [products, setProducts] = useState<InsuranceProduct[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [showCompare, setShowCompare] = useState(false);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [filters, setFilters] = useState<InsuranceFilters>({ ...DEFAULT_INSURANCE_FILTERS });
 
+  useEffect(() => {
+    loadMarketplaceProfile('insurance').then((saved) => {
+      if (saved) {
+        setProfile(saved);
+        setShowCatalog(true);
+        setFilters((prev) => ({
+          ...prev,
+          segment: saved.productSegment && saved.productSegment !== 'all' ? saved.productSegment : prev.segment,
+          category: saved.productCategory && saved.productCategory !== 'all' ? saved.productCategory : prev.category,
+        }));
+      }
+    });
+  }, []);
+
   const loadProducts = useCallback(async () => {
+    if (!showCatalog) return;
     setLoading(true);
     try {
       const list = await insuranceService.listActive(filters);
@@ -69,9 +99,41 @@ export default function InsuranceMarketplaceScreen() {
       setProducts([]);
     }
     setLoading(false);
-  }, [filters]);
+  }, [filters, showCatalog]);
 
   useEffect(() => { loadProducts(); }, [loadProducts]);
+
+  const handleProductSelect = (item: MarketplaceProductItem) => {
+    if (profile?.verifiedAt) {
+      setFilters((prev) => ({
+        ...prev,
+        segment: item.segment || prev.segment,
+        category: item.slug,
+      }));
+      setShowCatalog(true);
+      return;
+    }
+    setPendingProduct(item);
+    setWizardOpen(true);
+  };
+
+  const handleWizardComplete = async (completed: MarketplaceProfile) => {
+    const saved = await saveMarketplaceProfile('insurance', {
+      ...completed,
+      productCategory: pendingProduct?.slug || completed.productCategory,
+      productSegment: pendingProduct?.segment || completed.productSegment,
+      productLabel: pendingProduct?.label || completed.productLabel,
+    });
+    setProfile(saved);
+    setFilters((prev) => ({
+      ...prev,
+      segment: saved.productSegment && saved.productSegment !== 'all' ? saved.productSegment : prev.segment,
+      category: saved.productCategory && saved.productCategory !== 'all' ? saved.productCategory : prev.category,
+    }));
+    setWizardOpen(false);
+    setPendingProduct(null);
+    setShowCatalog(true);
+  };
 
   const compareProducts = useMemo(
     () => products.filter((p) => selected.includes(p.id)),
@@ -126,11 +188,46 @@ export default function InsuranceMarketplaceScreen() {
   );
 
   return (
-    <Screen title="Insurance" showBack loading={loading}>
+    <Screen title="Insurance" showBack loading={loading && showCatalog}>
+      {!showCatalog ? (
+        <ScrollView>
+          <View style={styles.hero}>
+            <Text style={styles.heroTitle}>Let&apos;s find you the Best Insurance</Text>
+            <Text style={styles.heroSub}>50+ insurers · Quick, easy & hassle free</Text>
+          </View>
+          <MarketplaceProductGrid
+            items={INSURANCE_PRODUCT_GRID}
+            onSelect={handleProductSelect}
+            title="Choose your insurance product"
+            subtitle="Select a category to get personalised quotes"
+          />
+          <Button
+            title="View all products"
+            variant="outline"
+            onPress={() => {
+              if (profile?.verifiedAt) setShowCatalog(true);
+              else {
+                setPendingProduct({ slug: 'all', label: 'All Insurance Products', icon: 'shield' });
+                setWizardOpen(true);
+              }
+            }}
+            style={{ marginTop: 8 }}
+          />
+        </ScrollView>
+      ) : (
+        <>
       <View style={styles.hero}>
         <Text style={styles.heroTitle}>Insurance Marketplace</Text>
-        <Text style={styles.heroSub}>Life · Health · Motor — compare, renew & claim help</Text>
+        <Text style={styles.heroSub}>
+          {profile?.productLabel ? `Plans for ${profile.productLabel}` : 'Life · Health · Motor — compare, renew & claim help'}
+        </Text>
+        {profile?.phone ? (
+          <Text style={styles.verifiedBadge}>✓ Verified {profile.phone}</Text>
+        ) : null}
       </View>
+      <TouchableOpacity onPress={() => setShowCatalog(false)} style={styles.browseLink}>
+        <Text style={styles.browseLinkText}>‹ Browse categories</Text>
+      </TouchableOpacity>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.segmentScroll}>
         <TouchableOpacity style={[styles.segmentChip, filters.segment === 'all' && styles.segmentChipActive]} onPress={() => updateFilter('segment', 'all')}>
@@ -177,21 +274,12 @@ export default function InsuranceMarketplaceScreen() {
       ) : null}
 
       {showCompare && compareProducts.length >= 2 ? (
-        <Card style={styles.compareCard}>
-          <Text style={styles.compareTitle}>Comparison</Text>
-          <ScrollView horizontal>
-            <View>
-              {COMPARE_TABLE_ROWS.map((row) => (
-                <View key={row.key} style={styles.compareRow}>
-                  <Text style={styles.compareLabel}>{row.label}</Text>
-                  {compareProducts.map((p) => (
-                    <Text key={p.id} style={styles.compareCell}>{formatCompareCell(p, row)}</Text>
-                  ))}
-                </View>
-              ))}
-            </View>
-          </ScrollView>
-        </Card>
+        <MarketplaceCompareView
+          title="Insurance plan comparison"
+          columns={buildInsuranceCompareColumns(compareProducts as unknown as Record<string, unknown>[], activeService)}
+          specRows={buildInsuranceSpecRows(compareProducts as unknown as Record<string, unknown>[])}
+          onRemove={(id) => setSelected((prev) => prev.filter((x) => x !== id))}
+        />
       ) : null}
 
       {filterModal}
@@ -241,6 +329,18 @@ export default function InsuranceMarketplaceScreen() {
           );
         }}
       />
+        </>
+      )}
+
+      <MarketplaceLeadWizard
+        visible={wizardOpen}
+        onClose={() => { setWizardOpen(false); setPendingProduct(null); }}
+        onComplete={handleWizardComplete}
+        marketplaceType="insurance"
+        productLabel={pendingProduct?.label}
+        productCategory={pendingProduct?.slug}
+        productSegment={pendingProduct?.segment}
+      />
     </Screen>
   );
 }
@@ -249,6 +349,9 @@ const styles = StyleSheet.create({
   hero: { backgroundColor: colors.customer, borderRadius: 16, padding: 18, marginBottom: 12 },
   heroTitle: { fontSize: 18, fontWeight: '800', color: '#fff' },
   heroSub: { fontSize: 13, color: 'rgba(255,255,255,0.9)', marginTop: 4 },
+  verifiedBadge: { fontSize: 11, color: '#D1FAE5', marginTop: 6, fontWeight: '600' },
+  browseLink: { marginBottom: 8 },
+  browseLinkText: { fontSize: 13, fontWeight: '700', color: colors.customer },
   segmentScroll: { marginBottom: 8 },
   segmentChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: colors.border, marginRight: 8, backgroundColor: colors.card },
   segmentChipActive: { backgroundColor: colors.customer, borderColor: colors.customer },

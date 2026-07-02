@@ -17,6 +17,7 @@ import Screen from '@/src/components/Screen';
 import Card from '@/src/components/Card';
 import Button from '@/src/components/Button';
 import BankLogo from '@/src/components/BankLogo';
+import MarketplaceLeadWizard from '@/src/components/marketplace/MarketplaceLeadWizard';
 import { colors } from '@/src/theme';
 import { creditCardService, type CreditCard } from '@/src/services/creditCardService';
 import {
@@ -36,6 +37,12 @@ import {
   formatCardFee,
   resetCreditCardFilters,
 } from '@/src/utils/creditCardFilters';
+import { completeCreditCardApply } from '@/src/utils/creditCardApplyFlow';
+import {
+  loadMarketplaceProfile,
+  saveMarketplaceProfile,
+  type MarketplaceProfile,
+} from '@/src/utils/marketplaceLeadSession';
 // @ts-expect-error JS module
 import { resolveBankLogoUrl, getKnownBankLogoUrl } from '@/src/utils/bankBranding';
 
@@ -82,6 +89,13 @@ export default function CreditCardsScreen() {
   const [showCompare, setShowCompare] = useState(false);
   const [filters, setFilters] = useState<CreditCardFilters>({ ...DEFAULT_CREDIT_CARD_FILTERS });
   const [filterModalOpen, setFilterModalOpen] = useState(false);
+  const [profile, setProfile] = useState<MarketplaceProfile | null>(null);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [pendingCard, setPendingCard] = useState<CreditCard | null>(null);
+
+  useEffect(() => {
+    loadMarketplaceProfile('credit_card').then(setProfile);
+  }, []);
 
   const loadCards = useCallback(async () => {
     setLoading(true);
@@ -105,6 +119,36 @@ export default function CreditCardsScreen() {
 
   const activeFilterCount = countActiveFilters(filters);
 
+  const handleCreditCardApply = useCallback(async (card: CreditCard) => {
+    if (!card.applyUrl) {
+      await openApplyUrl(null);
+      return;
+    }
+
+    const activeProfile = profile || await loadMarketplaceProfile('credit_card');
+    if (!activeProfile?.verifiedAt) {
+      setPendingCard(card);
+      setWizardOpen(true);
+      return;
+    }
+
+    await completeCreditCardApply(card, activeProfile);
+  }, [profile]);
+
+  const handleWizardComplete = useCallback(async (completedProfile: MarketplaceProfile) => {
+    const saved = await saveMarketplaceProfile('credit_card', {
+      ...completedProfile,
+      productLabel: pendingCard?.name || completedProfile.productLabel,
+    });
+    setProfile(saved);
+    setWizardOpen(false);
+    const card = pendingCard;
+    setPendingCard(null);
+    if (card) {
+      await completeCreditCardApply(card, saved);
+    }
+  }, [pendingCard]);
+
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
@@ -125,6 +169,9 @@ export default function CreditCardsScreen() {
       <View style={{ flex: 1 }}>
         <Text style={styles.heroTitle}>Credit Card Marketplace</Text>
         <Text style={styles.heroSub}>Compare by category, fees, rewards & benefits</Text>
+        {profile?.fullName ? (
+          <Text style={styles.verifiedBadge}>Verified: {profile.phone} · {profile.email}</Text>
+        ) : null}
       </View>
       <Ionicons name="card" size={44} color="rgba(255,255,255,0.9)" style={{ marginLeft: 8 }} />
     </View>
@@ -185,7 +232,7 @@ export default function CreditCardsScreen() {
               <View style={styles.compareLabelCol}><Text style={styles.compareRowLabel}>Apply</Text></View>
               {compareCards.map((card) => (
                 <View key={card.id} style={styles.compareCol}>
-                  <TouchableOpacity style={styles.applyBtn} onPress={() => openApplyUrl(card.applyUrl)}>
+                  <TouchableOpacity style={styles.applyBtn} onPress={() => handleCreditCardApply(card)}>
                     <Text style={styles.applyBtnText}>Apply</Text>
                   </TouchableOpacity>
                 </View>
@@ -374,11 +421,19 @@ export default function CreditCardsScreen() {
                     {isSelected ? 'Selected' : 'Compare'}
                   </Text>
                 </TouchableOpacity>
-                <Button title="Apply Now" variant="customer" onPress={() => openApplyUrl(item.applyUrl)} style={styles.applyNowBtn} />
+                <Button title="Apply Now" variant="customer" onPress={() => handleCreditCardApply(item)} style={styles.applyNowBtn} />
               </View>
             </Card>
           );
         }}
+      />
+      <MarketplaceLeadWizard
+        visible={wizardOpen}
+        onClose={() => { setWizardOpen(false); setPendingCard(null); }}
+        onComplete={handleWizardComplete}
+        marketplaceType="credit_card"
+        productLabel={pendingCard?.name}
+        productCategory={pendingCard?.categories?.[0]}
       />
     </Screen>
   );
@@ -395,6 +450,7 @@ const styles = StyleSheet.create({
   },
   heroTitle: { fontSize: 18, fontWeight: '800', color: '#fff' },
   heroSub: { fontSize: 13, color: 'rgba(255,255,255,0.9)', marginTop: 4 },
+  verifiedBadge: { fontSize: 11, color: '#D1FAE5', marginTop: 6, fontWeight: '600' },
   categoryScroll: { marginBottom: 12 },
   categoryChip: {
     paddingHorizontal: 14,

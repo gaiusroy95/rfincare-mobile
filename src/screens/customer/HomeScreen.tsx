@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 
 import { View, Text, StyleSheet, Modal, Alert, TouchableOpacity } from 'react-native';
 
@@ -39,6 +39,7 @@ import SectionHeader from '@/src/components/home/SectionHeader';
 import { useAuth } from '@/src/contexts/AuthContext';
 
 import { useLoanProducts } from '@/src/contexts/LoanProductsContext';
+import { buildHomepageShowcaseProducts } from '@/src/utils/showcaseProducts';
 
 import { colors } from '@/src/theme';
 
@@ -63,6 +64,11 @@ export default function HomeScreen() {
   const { user } = useAuth();
 
   const { products, loading: productsLoading } = useLoanProducts();
+
+  const showcaseProducts = useMemo(
+    () => buildHomepageShowcaseProducts(products),
+    [products],
+  );
 
 
 
@@ -382,7 +388,7 @@ export default function HomeScreen() {
 
 
 
-      <HomeLoanProductsSection products={products as never[]} loading={productsLoading} />
+      <HomeLoanProductsSection products={showcaseProducts as never[]} loading={productsLoading} />
 
 
 

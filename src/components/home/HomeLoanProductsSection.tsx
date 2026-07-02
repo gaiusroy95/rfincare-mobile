@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -13,11 +13,9 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   Car: 'car',
   GraduationCap: 'school',
   CreditCard: 'card',
-  Landmark: 'business',
-  Heart: 'heart',
   Shield: 'shield-checkmark',
-  PiggyBank: 'wallet',
   TrendingUp: 'trending-up',
+  GitCompare: 'git-compare',
 };
 
 const CREDIT_CARD_SLUGS = new Set(['credit_card', 'creditcard']);
@@ -43,12 +41,27 @@ type Product = {
   color?: string;
   interestRange?: string;
   features?: string[];
+  kind?: string;
+  route?: string;
 };
 
 type Props = {
   products: Product[];
   loading?: boolean;
 };
+
+function resolveAccent(color?: string) {
+  if (!color) return colors.primary;
+  return COLOR_MAP[color] || color;
+}
+
+function resolveViewRoute(item: Product) {
+  if (item.route) return item.route;
+  if (item.kind === 'compare') return '/(customer)/product-comparison';
+  if (isCreditCard(item)) return '/(customer)/credit-cards';
+  if (item.slug) return `/(customer)/product/${item.slug}`;
+  return '/(customer)/(tabs)/home';
+}
 
 export default function HomeLoanProductsSection({ products, loading }: Props) {
   return (
@@ -61,11 +74,18 @@ export default function HomeLoanProductsSection({ products, loading }: Props) {
       <View style={styles.grid}>
         {products.map((loan) => {
           const icon = ICON_MAP[loan.icon || ''] || 'cash';
-          const accent = COLOR_MAP[loan.color || ''] || colors.primary;
+          const accent = resolveAccent(loan.color);
           const title = loan.label || loan.name || 'Loan';
           const creditCard = isCreditCard(loan);
+          const isCompare = loan.kind === 'compare';
+          const isMarketplace = loan.kind === 'marketplace';
+          const rateLabel = isMarketplace ? 'Starting from' : 'Interest rate';
+
           return (
-            <View key={loan.slug} style={styles.card}>
+            <View
+              key={loan.slug}
+              style={[styles.card, isCompare && styles.compareCard]}
+            >
               <View style={styles.header}>
                 <View style={[styles.iconWrap, { backgroundColor: accent }]}>
                   <Ionicons name={icon} size={24} color="#fff" />
@@ -77,7 +97,7 @@ export default function HomeLoanProductsSection({ products, loading }: Props) {
               </View>
               {loan.interestRange ? (
                 <View style={styles.rateBox}>
-                  <Text style={styles.rateLabel}>Interest rate</Text>
+                  <Text style={styles.rateLabel}>{rateLabel}</Text>
                   <Text style={[styles.rateValue, { color: accent }]}>{loan.interestRange}</Text>
                 </View>
               ) : null}
@@ -90,23 +110,29 @@ export default function HomeLoanProductsSection({ products, loading }: Props) {
               <View style={styles.actions}>
                 <TouchableOpacity
                   style={[styles.btn, { backgroundColor: accent }]}
-                  onPress={() =>
-                    creditCard
-                      ? router.push('/(customer)/credit-cards')
-                      : loan.slug && router.push(`/(customer)/product/${loan.slug}` as never)
-                  }
+                  onPress={() => router.push(resolveViewRoute(loan) as never)}
                 >
-                  <Text style={styles.btnTextPrimary}>View</Text>
+                  <Text style={styles.btnTextPrimary}>
+                    {isCompare ? 'Compare' : 'View'}
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.btnOutline}
-                  onPress={() =>
-                    creditCard
-                      ? router.push('/(customer)/credit-cards')
-                      : void openAssessmentOrEligibilityFirst({ loanType: loan.slug })
-                  }
+                  onPress={() => {
+                    if (isCompare || isMarketplace) {
+                      router.push(resolveViewRoute(loan) as never);
+                      return;
+                    }
+                    if (creditCard) {
+                      router.push('/(customer)/credit-cards');
+                      return;
+                    }
+                    void openAssessmentOrEligibilityFirst({ loanType: loan.slug });
+                  }}
                 >
-                  <Text style={styles.btnTextOutline}>{creditCard ? 'View cards' : 'Apply'}</Text>
+                  <Text style={styles.btnTextOutline}>
+                    {isCompare ? 'Start' : isMarketplace ? 'Explore' : creditCard ? 'View cards' : 'Apply'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -126,6 +152,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: 14,
+  },
+  compareCard: {
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(99, 102, 241, 0.06)',
   },
   header: { flexDirection: 'row', gap: 12, marginBottom: 10 },
   iconWrap: {

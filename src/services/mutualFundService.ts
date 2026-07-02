@@ -24,6 +24,18 @@ export const mutualFundService = {
     const res = await apiClient.get(`/mutual-funds/${id}`);
     return res.data;
   },
+
+  async calculate(payload: {
+    investmentMode?: 'sip' | 'lumpsum';
+    monthlyInvestment?: number;
+    lumpsumAmount?: number;
+    expectedReturn?: number;
+    expenseRatio?: number;
+    tenureYears?: number;
+  }) {
+    const res = await apiClient.post('/mutual-funds/calculate', payload);
+    return res.data;
+  },
 };
 
 export type MutualFund = {

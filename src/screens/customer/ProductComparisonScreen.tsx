@@ -8,10 +8,22 @@ import Button from '@/src/components/Button';
 import CompareTable, { type CompareColumn, type CompareRow } from '@/src/components/CompareTable';
 import { useLoanProducts } from '@/src/contexts/LoanProductsContext';
 import { openAssessmentOrEligibilityFirst } from '@/src/utils/eligibilityGate';
+import { filterMarketplaceCatalog } from '@/src/utils/showcaseProducts';
 import { PRODUCT_COMPARISON_ROWS } from '@/src/constants/bankProductComparisonFields';
 import { colors } from '@/src/theme';
 
 const MAX_PRODUCT_COMPARE = 8;
+
+const MARKETPLACE_COMPARE_LINKS = [
+  { slug: 'insurance', label: 'Insurance plans', path: '/(customer)/insurance', icon: 'shield-checkmark' as const },
+  { slug: 'mutual_fund', label: 'Mutual funds', path: '/(customer)/mutual-funds', icon: 'trending-up' as const },
+  { slug: 'fixed_income', label: 'Fixed income', path: '/(customer)/fixed-income', icon: 'cash' as const },
+  { slug: 'post_office', label: 'Post office', path: '/(customer)/post-office', icon: 'mail' as const },
+  { slug: 'government_schemes', label: 'Govt schemes', path: '/(customer)/government-schemes', icon: 'business' as const },
+  { slug: 'investment', label: 'Investments', path: '/(customer)/investment-marketplace', icon: 'diamond' as const },
+  { slug: 'credit_card', label: 'Credit cards', path: '/(customer)/credit-cards', icon: 'card' as const },
+  { slug: 'bank', label: 'Bank loans', path: '/(customer)/(tabs)/marketplace', icon: 'business' as const },
+];
 
 const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   Wallet: 'wallet',
@@ -20,6 +32,11 @@ const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   Car: 'car',
   GraduationCap: 'school',
   CreditCard: 'card',
+  Shield: 'shield-checkmark',
+  TrendingUp: 'trending-up',
+  Mail: 'mail',
+  Landmark: 'business',
+  Gem: 'diamond',
 };
 
 const COLOR_MAP: Record<string, string> = {
@@ -39,6 +56,8 @@ type Product = {
   color?: string;
   interestRange?: string;
   features?: string[];
+  kind?: string;
+  route?: string;
 };
 
 function productId(p: Product, index: number) {
@@ -47,7 +66,11 @@ function productId(p: Product, index: number) {
 
 export default function ProductComparisonScreen() {
   const { products, loading } = useLoanProducts();
-  const list = products as Product[];
+  const marketplaceProducts = useMemo(() => filterMarketplaceCatalog(), []);
+  const list = useMemo(
+    () => [...(products as Product[]), ...marketplaceProducts],
+    [products, marketplaceProducts],
+  );
   const [selected, setSelected] = useState<string[]>([]);
   const [showTable, setShowTable] = useState(false);
 
@@ -103,10 +126,24 @@ export default function ProductComparisonScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
           <Ionicons name="layers" size={28} color="#fff" />
-          <Text style={styles.heroTitle}>Compare Loan Products</Text>
+          <Text style={styles.heroTitle}>Compare Products</Text>
           <Text style={styles.heroSub}>
-            Select products below, tap Compare Now, then apply or browse bank offers in the marketplace.
+            Select products below, tap Compare Now, then open marketplace views for insurance, mutual funds, and bank offers.
           </Text>
+        </View>
+
+        <Text style={styles.sectionTitle}>Marketplace comparison</Text>
+        <View style={styles.marketplaceRow}>
+          {MARKETPLACE_COMPARE_LINKS.map((item) => (
+            <TouchableOpacity
+              key={item.slug}
+              style={styles.marketplaceChip}
+              onPress={() => router.push(item.path as never)}
+            >
+              <Ionicons name={item.icon} size={16} color={colors.primary} />
+              <Text style={styles.marketplaceChipText}>{item.label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         <Text style={styles.hint}>
@@ -120,6 +157,9 @@ export default function ProductComparisonScreen() {
           const accent = COLOR_MAP[p.color || ''] || colors.primary;
           const amountLabel = p.features?.[0] || 'Flexible amount';
           const tenureLabel = p.features?.[1] || 'Flexible tenure';
+
+          const isMarketplace = p.kind === 'marketplace';
+          const isCreditCard = p.slug === 'credit_card' || p.apiKey === 'credit_card';
 
           return (
             <TouchableOpacity
@@ -159,15 +199,27 @@ export default function ProductComparisonScreen() {
               </View>
 
               <Button
-                title={p.slug === 'credit_card' || p.apiKey === 'credit_card' ? 'View credit cards' : 'Apply for this product'}
-                variant="customer"
-                onPress={() =>
-                  p.slug === 'credit_card' || p.apiKey === 'credit_card'
-                    ? router.push('/(customer)/credit-cards')
-                    : void openAssessmentOrEligibilityFirst({
-                        loanType: String(p.slug || p.apiKey),
-                      })
+                title={
+                  isMarketplace
+                    ? 'Open marketplace'
+                    : isCreditCard
+                      ? 'View credit cards'
+                      : 'Apply for this product'
                 }
+                variant="customer"
+                onPress={() => {
+                  if (isMarketplace && p.route) {
+                    router.push(p.route as never);
+                    return;
+                  }
+                  if (isCreditCard) {
+                    router.push('/(customer)/credit-cards');
+                    return;
+                  }
+                  void openAssessmentOrEligibilityFirst({
+                    loanType: String(p.slug || p.apiKey),
+                  });
+                }}
                 style={{ marginTop: 10 }}
               />
             </TouchableOpacity>
@@ -213,6 +265,20 @@ const styles = StyleSheet.create({
   heroTitle: { fontSize: 22, fontWeight: '800', color: '#fff', marginTop: 10 },
   heroSub: { fontSize: 13, color: 'rgba(255,255,255,0.92)', marginTop: 8, lineHeight: 18 },
   hint: { fontSize: 12, color: colors.mutedForeground, marginBottom: 12, fontWeight: '600' },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.foreground, marginBottom: 8 },
+  marketplaceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  marketplaceChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  marketplaceChipText: { fontSize: 12, fontWeight: '600', color: colors.foreground },
   card: {
     backgroundColor: colors.card,
     borderRadius: 16,
